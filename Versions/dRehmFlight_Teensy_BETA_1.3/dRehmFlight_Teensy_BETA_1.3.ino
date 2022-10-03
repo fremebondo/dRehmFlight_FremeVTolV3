@@ -63,7 +63,7 @@ static const uint8_t num_DSM_channels = 6; //If using DSM RX, change this to mat
 
 #include <Wire.h>     //I2c communication
 #include <SPI.h>      //SPI communication
-#include <PWMServo.h> //Commanding any extra actuators, installed with teensyduino installer
+#include <Servo.h> //Commanding any extra actuators, installed with teensyduino installer
 
 #if defined USE_SBUS_RX
   #include "src/SBUS/SBUS.h"   //sBus interface
@@ -153,6 +153,8 @@ unsigned long channel_4_fs = 1500; //rudd
 unsigned long channel_5_fs = 2000; //gear, greater than 1500 = throttle cut
 unsigned long channel_6_fs = 2000; //aux1
 
+int RXLED=17;
+
 //Filter parameters - Defaults tuned for 2kHz loop rate; Do not touch unless you know what you are doing:
 float B_madgwick = 0.04;  //Madgwick filter parameter
 float B_accel = 0.14;     //Accelerometer LP filter paramter, (MPU6050 default: 0.14. MPU9250 default: 0.2)
@@ -214,7 +216,7 @@ float Kd_yaw = 0.00015;       //Yaw D-gain (be careful when increasing too high,
 //Note: If using SBUS, connect to pin 21 (RX5), if using DSM, connect to pin 15 (RX3)
 const int ch1Pin = 15; //throttle
 const int ch2Pin = 16; //ail
-const int ch3Pin = 17; //ele
+const int ch3Pin = 14; //ele
 const int ch4Pin = 20; //rudd
 const int ch5Pin = 21; //gear (throttle cut)
 const int ch6Pin = 22; //aux1 (free aux channel)
@@ -234,13 +236,13 @@ const int servo4Pin = 4;
 const int servo5Pin = 5;
 const int servo6Pin = 6;
 const int servo7Pin = 7;
-PWMServo servo1;  //Create servo objects to control a servo or ESC with PWM
-PWMServo servo2;
-PWMServo servo3;
-PWMServo servo4;
-PWMServo servo5;
-PWMServo servo6;
-PWMServo servo7;
+Servo servo1;  //Create servo objects to control a servo or ESC with PWM
+Servo servo2;
+Servo servo3;
+Servo servo4;
+Servo servo5;
+Servo servo6;
+Servo servo7;
 
 
 
@@ -262,7 +264,7 @@ unsigned long channel_1_pwm, channel_2_pwm, channel_3_pwm, channel_4_pwm, channe
 unsigned long channel_1_pwm_prev, channel_2_pwm_prev, channel_3_pwm_prev, channel_4_pwm_prev;
 
 #if defined USE_SBUS_RX
-  SBUS sbus(Serial5);
+  SBUS sbus(Serial1);
   uint16_t sbusChannels[16];
   bool sbusFailSafe;
   bool sbusLostFrame;
@@ -311,7 +313,7 @@ void setup() {
   delay(500);
   
   //Initialize all pins
-  pinMode(13, OUTPUT); //Pin 13 LED blinker on board, do not modify 
+  pinMode(RXLED, OUTPUT); //Pin 13 LED blinker on board, do not modify 
   pinMode(m1Pin, OUTPUT);
   pinMode(m2Pin, OUTPUT);
   pinMode(m3Pin, OUTPUT);
@@ -327,7 +329,7 @@ void setup() {
   servo7.attach(servo7Pin, 900, 2100);
 
   //Set built in LED to turn on to signal startup
-  digitalWrite(13, HIGH);
+  digitalWrite(RXLED, HIGH);
 
   delay(5);
 
@@ -343,7 +345,7 @@ void setup() {
   channel_6_pwm = channel_6_fs;
 
   //Initialize IMU communication
-  IMUinit();
+  //IMUinit();
 
   delay(5);
 
@@ -396,7 +398,7 @@ void loop() {
   loopBlink(); //Indicate we are in main loop with short blink every 1.5 seconds
 
   //Print data at 100hz (uncomment one at a time for troubleshooting) - SELECT ONE:
-  printRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
+  //printRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
   //printDesiredState();  //Prints desired vehicle state commanded in either degrees or deg/sec (expected: +/- maxAXIS for roll, pitch, yaw; 0 to 1 for throttle)
   //printGyroData();      //Prints filtered gyro data direct from IMU (expected: ~ -250 to 250, 0 at rest)
   //printAccelData();     //Prints filtered accelerometer data direct from IMU (expected: ~ -2 to 2; x,y 0 when level, z 1 when level)
@@ -405,10 +407,10 @@ void loop() {
   //printPIDoutput();     //Prints computed stabilized PID variables from controller and desired setpoint (expected: ~ -1 to 1)
   //printMotorCommands(); //Prints the values being written to the motors (expected: 120 to 250)
   //printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
-  //printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
-
+  printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
+if (1) {
   //Get vehicle state
-  getIMUdata(); //Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
+  //getIMUdata(); //Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
   Madgwick(GyroX, -GyroY, -GyroZ, -AccX, AccY, AccZ, MagY, -MagX, MagZ, dt); //Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
 
   //Compute desired state
@@ -428,18 +430,18 @@ void loop() {
 
   //Command actuators
   commandMotors(); //Sends command pulses to each motor pin using OneShot125 protocol
-  servo1.write(s1_command_PWM); //Writes PWM value to servo object
-  servo2.write(s2_command_PWM);
-  servo3.write(s3_command_PWM);
-  servo4.write(s4_command_PWM);
-  servo5.write(s5_command_PWM);
-  servo6.write(s6_command_PWM);
-  servo7.write(s7_command_PWM);
+  //servo1.write(s1_command_PWM); //Writes PWM value to servo object
+  //servo2.write(s2_command_PWM);
+  //servo3.write(s3_command_PWM);
+  //servo4.write(s4_command_PWM);
+  //servo5.write(s5_command_PWM);
+  //servo6.write(s6_command_PWM);
+  //servo7.write(s7_command_PWM);
     
   //Get vehicle commands for next loop iteration
-  getCommands(); //Pulls current available radio commands
+  //getCommands(); //Pulls current available radio commands
   failSafe(); //Prevent failures in event of bad receiver connection, defaults to failsafe values assigned in setup
-
+}
   //Regulate loop rate
   loopRate(2000); //Do not exceed 2000Hz, all filter parameters tuned to 2000Hz by default
 }
@@ -1347,7 +1349,7 @@ void calibrateESCs() {
       current_time = micros();      
       dt = (current_time - prev_time)/1000000.0;
     
-      digitalWrite(13, HIGH); //LED on to indicate we are not in main loop
+      digitalWrite(17, HIGH); //LED on to indicate we are not in main loop
 
       getCommands(); //Pulls current available radio commands
       failSafe(); //Prevent failures in event of bad receiver connection, defaults to failsafe values assigned in setup
@@ -1552,7 +1554,7 @@ void loopBlink() {
    */
   if (current_time - blink_counter > blink_delay) {
     blink_counter = micros();
-    digitalWrite(13, blinkAlternate); //Pin 13 is built in LED
+    digitalWrite(RXLED, blinkAlternate); //Pin 13 is built in LED
     
     if (blinkAlternate == 1) {
       blinkAlternate = 0;
@@ -1568,9 +1570,9 @@ void loopBlink() {
 void setupBlink(int numBlinks,int upTime, int downTime) {
   //DESCRIPTION: Simple function to make LED on board blink as desired
   for (int j = 1; j<= numBlinks; j++) {
-    digitalWrite(13, LOW);
+    digitalWrite(RXLED, LOW);
     delay(downTime);
-    digitalWrite(13, HIGH);
+    digitalWrite(RXLED, HIGH);
     delay(upTime);
   }
 }
