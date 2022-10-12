@@ -30,6 +30,8 @@ Everyone that sends me pictures and videos of your flying creations! -Nick
 //                                                 USER-SPECIFIED DEFINES                                                 //                                                                 
 //========================================================================================================================//
 
+//#define SKIP_IMU
+
 //Uncomment only one receiver type
 //#define USE_PWM_RX
 //#define USE_PPM_RX
@@ -203,8 +205,6 @@ float Kp_yaw = 0.3;           //Yaw P-gain
 float Ki_yaw = 0.05;          //Yaw I-gain
 float Kd_yaw = 0.00015;       //Yaw D-gain (be careful when increasing too high, motors will begin to overheat!)
 
-
-
 //========================================================================================================================//
 //                                                     DECLARE PINS                                                       //                           
 //========================================================================================================================//                                          
@@ -331,6 +331,8 @@ void setup() {
 
   delay(5);
 
+ // while(1);
+
   //Initialize radio communication
   radioSetup();
   
@@ -343,7 +345,9 @@ void setup() {
   channel_6_pwm = channel_6_fs;
 
   //Initialize IMU communication
-  IMUinit();
+  #ifndef SKIP_IMU
+    IMUinit();
+  #endif
 
   delay(5);
 
@@ -396,21 +400,25 @@ void loop() {
   loopBlink(); //Indicate we are in main loop with short blink every 1.5 seconds
 
   //Print data at 100hz (uncomment one at a time for troubleshooting) - SELECT ONE:
-  printRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
+  //printRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
   //printDesiredState();  //Prints desired vehicle state commanded in either degrees or deg/sec (expected: +/- maxAXIS for roll, pitch, yaw; 0 to 1 for throttle)
   //printGyroData();      //Prints filtered gyro data direct from IMU (expected: ~ -250 to 250, 0 at rest)
   //printAccelData();     //Prints filtered accelerometer data direct from IMU (expected: ~ -2 to 2; x,y 0 when level, z 1 when level)
   //printMagData();       //Prints filtered magnetometer data direct from IMU (expected: ~ -300 to 300)
   //printRollPitchYaw();  //Prints roll, pitch, and yaw angles in degrees from Madgwick filter (expected: degrees, 0 when level)
   //printPIDoutput();     //Prints computed stabilized PID variables from controller and desired setpoint (expected: ~ -1 to 1)
+  //printMixer();
   //printMotorCommands(); //Prints the values being written to the motors (expected: 120 to 250)
-  //printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
+  printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
   //printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
+ 
 
   //Get vehicle state
+  #ifndef SKIP_IMU
   getIMUdata(); //Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
   Madgwick(GyroX, -GyroY, -GyroZ, -AccX, AccY, AccZ, MagY, -MagX, MagZ, dt); //Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
-
+  #endif
+  
   //Compute desired state
   getDesState(); //Convert raw commands to normalized values based on saturated control limits
   
@@ -452,6 +460,7 @@ void loop() {
 
 
 float fader=0;
+float mL_scaled, mR_scaled, sL_scaled, sR_scaled, sE_scaled;
 void controlMixer() {
   //DESCRIPTION: Mixes scaled commands from PID controller to actuator outputs based on vehicle configuration
   /*
@@ -468,22 +477,23 @@ void controlMixer() {
    *roll_passthru, pitch_passthru, yaw_passthru - direct unstabilized command passthrough
    *channel_6_pwm - free auxillary channel, can be used to toggle things with an 'if' statement
    */
-    float mL_scaled, mR_scaled, sL_scaled, sR_scaled, sE_scaled;
- 
+    
+    float trimL=0.3;
+    float trimR=0.3;
     //hovering
     float mL_hov = thro_des + roll_PID; //Front left motor
     float mR_hov = thro_des - roll_PID; //Front right motor
-    float sL_hov = pitch_PID + yaw_PID; //Tilt left servo
-    float sR_hov = pitch_PID - yaw_PID; //Tilt right servo
-    float sE_hov = pitch_PID;           //Elevator servo
+    float sL_hov = trimL + pitch_PID + yaw_PID; //Tilt left servo
+    float sR_hov = trimR + pitch_PID - yaw_PID; //Tilt right servo
+    float sE_hov = 0.5 + pitch_PID;           //Elevator servo
 
     //forward flight
-    float ff_tilt = 0.3;
+    float ff_tilt = 0.5;
     float mL_ff = thro_des + yaw_PID; //Front left motor
     float mR_ff = thro_des - yaw_PID; //Front right motor
-    float sL_ff = ff_tilt + roll_PID; //Tilt left servo
-    float sR_ff = ff_tilt - roll_PID; //Tilt right servo
-    float sE_ff = pitch_PID;           //Elevator servo
+    float sL_ff = trimL + ff_tilt + roll_PID; //Tilt left servo
+    float sR_ff = trimR + ff_tilt - roll_PID; //Tilt right servo
+    float sE_ff = 0.5 + pitch_PID;           //Elevator servo
 
     fader = floatFaderLinear2(fader,channel_6_pwm>1500,0,1,5,2,2000);
   
@@ -500,13 +510,32 @@ void controlMixer() {
     m5_command_scaled = 0;
     m6_command_scaled = 0;
     s1_command_scaled = sL_scaled;
-    s1_command_scaled = sR_scaled;
-    s1_command_scaled = sE_scaled;
+    s2_command_scaled = sR_scaled;
+    s3_command_scaled = sE_scaled;
     s4_command_scaled = 0;
     s5_command_scaled = 0;
     s6_command_scaled = 0;
     s7_command_scaled = 0;
  
+}
+
+
+void printMixer() {
+  if (current_time - print_counter > 10000) {
+    print_counter = micros();
+    Serial.print(F(" fader: "));
+    Serial.print(fader);
+    Serial.print(F(" mL_scaled: "));
+    Serial.print(mL_scaled);
+    Serial.print(F(" mR_scaled: "));
+    Serial.print(mR_scaled);
+    Serial.print(F(" sL_scaled: "));
+    Serial.print(sL_scaled);
+    Serial.print(F(" sR_scaled: "));
+    Serial.print(sR_scaled);
+    Serial.print(F(" sE_scaled: "));
+    Serial.println(sE_scaled);
+  }
 }
 
 void IMUinit() {
