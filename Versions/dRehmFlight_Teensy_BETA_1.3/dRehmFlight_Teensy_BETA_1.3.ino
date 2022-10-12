@@ -30,8 +30,9 @@ Everyone that sends me pictures and videos of your flying creations! -Nick
 //                                                 USER-SPECIFIED DEFINES                                                 //                                                                 
 //========================================================================================================================//
 
-//#define SKIP_IMU
+#define SKIP_IMU
 
+#define LOOPRATE 1000
 //Uncomment only one receiver type
 //#define USE_PWM_RX
 //#define USE_PPM_RX
@@ -411,8 +412,8 @@ void loop() {
   //printPIDoutput();     //Prints computed stabilized PID variables from controller and desired setpoint (expected: ~ -1 to 1)
   //printMixer();
   //printMotorCommands(); //Prints the values being written to the motors (expected: 120 to 250)
-  printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
-  //printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
+  //printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
+  printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
  
 
   //Get vehicle state
@@ -449,9 +450,9 @@ void loop() {
   //Get vehicle commands for next loop iteration
   //getCommands(); //Pulls current available radio commands
   failSafe(); //Prevent failures in event of bad receiver connection, defaults to failsafe values assigned in setup
-}
+  
   //Regulate loop rate
-  loopRate(2000); //Do not exceed 2000Hz, all filter parameters tuned to 2000Hz by default
+  loopRate(LOOPRATE); //Do not exceed 2000Hz, all filter parameters tuned to 2000Hz by default
 }
 
 
@@ -497,7 +498,7 @@ void controlMixer() {
     float sR_ff = trimR + ff_tilt - roll_PID; //Tilt right servo
     float sE_ff = 0.5 + pitch_PID;           //Elevator servo
 
-    fader = floatFaderLinear2(fader,channel_6_pwm>1500,0,1,5,2,2000);
+    fader = floatFaderLinear2(fader,channel_6_pwm>1500,0,1,5,2,LOOPRATE);
   
     mL_scaled = (1-fader)*mL_hov + (fader)*mL_ff;
     mR_scaled = (1-fader)*mR_hov + (fader)*mR_ff;
@@ -735,7 +736,7 @@ void calibrateAttitude() {
     dt = (current_time - prev_time)/1000000.0; 
     getIMUdata();
     Madgwick(GyroX, -GyroY, -GyroZ, -AccX, AccY, AccZ, MagY, -MagX, MagZ, dt);
-    loopRate(2000); //do not exceed 2000Hz
+    loopRate(LOOPRATE); //do not exceed 2000Hz
   }
 }
 
@@ -1415,7 +1416,7 @@ void calibrateESCs() {
       
       //printRadioData(); //Radio pwm values (expected: 1000 to 2000)
       
-      loopRate(2000); //Do not exceed 2000Hz, all filter parameters tuned to 2000Hz by default
+      loopRate(LOOPRATE); //Do not exceed 2000Hz, all filter parameters tuned to 2000Hz by default
    }
 }
 
