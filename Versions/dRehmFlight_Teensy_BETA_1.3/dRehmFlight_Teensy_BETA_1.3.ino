@@ -223,27 +223,15 @@ const int ch5Pin = 21; //gear (throttle cut)
 const int ch6Pin = 22; //aux1 (free aux channel)
 const int PPM_Pin = 23;
 //OneShot125 ESC pin outputs:
-const int m1Pin = 9;//0;
-const int m2Pin = 8;//1;
-const int m3Pin = 0;
-const int m4Pin = 1;
-const int m5Pin = 2;
-const int m6Pin = 3;
+const int m1Pin = 7;
+const int m2Pin = 8;
 //PWM servo or ESC outputs:
-const int servo1Pin = 12;
-const int servo2Pin = 11;
-const int servo3Pin = 10;
-const int servo4Pin = 4;
-const int servo5Pin = 5;
-const int servo6Pin = 6;
-const int servo7Pin = 7;
+const int servo1Pin = 5;
+const int servo2Pin = 6;
+const int servo3Pin = 9;
 Servo servo1;  //Create servo objects to control a servo or ESC with PWM
 Servo servo2;
 Servo servo3;
-Servo servo4;
-Servo servo5;
-Servo servo6;
-Servo servo7;
 
 
 
@@ -298,10 +286,10 @@ float error_pitch, error_pitch_prev, pitch_des_prev, integral_pitch, integral_pi
 float error_yaw, error_yaw_prev, integral_yaw, integral_yaw_prev, derivative_yaw, yaw_PID = 0;
 
 //Mixer
-float m1_command_scaled, m2_command_scaled, m3_command_scaled, m4_command_scaled, m5_command_scaled, m6_command_scaled;
-int m1_command_PWM, m2_command_PWM, m3_command_PWM, m4_command_PWM, m5_command_PWM, m6_command_PWM;
-float s1_command_scaled, s2_command_scaled, s3_command_scaled, s4_command_scaled, s5_command_scaled, s6_command_scaled, s7_command_scaled;
-int s1_command_PWM, s2_command_PWM, s3_command_PWM, s4_command_PWM, s5_command_PWM, s6_command_PWM, s7_command_PWM;
+float m1_command_scaled, m2_command_scaled;
+int m1_command_PWM, m2_command_PWM;
+float s1_command_scaled, s2_command_scaled, s3_command_scaled;
+int s1_command_PWM, s2_command_PWM, s3_command_PWM;
 
 
 
@@ -317,17 +305,9 @@ void setup() {
   pinMode(RXLED, OUTPUT); //Pin 13 LED blinker on board, do not modify 
   pinMode(m1Pin, OUTPUT);
   pinMode(m2Pin, OUTPUT);
-  pinMode(m3Pin, OUTPUT);
-  pinMode(m4Pin, OUTPUT);
-  pinMode(m5Pin, OUTPUT);
-  pinMode(m6Pin, OUTPUT);
   servo1.attach(servo1Pin, 900, 2100); //Pin, min PWM value, max PWM value
   servo2.attach(servo2Pin, 900, 2100);
   servo3.attach(servo3Pin, 900, 2100);
-  servo4.attach(servo4Pin, 900, 2100);
-  servo5.attach(servo5Pin, 900, 2100);
-  servo6.attach(servo6Pin, 900, 2100);
-  servo7.attach(servo7Pin, 900, 2100);
 
   //Set built in LED to turn on to signal startup
   digitalWrite(RXLED, HIGH);
@@ -361,10 +341,6 @@ void setup() {
   servo1.write(0); //Command servo angle from 0-180 degrees (1000 to 2000 PWM)
   servo2.write(0); //Set these to 90 for servos if you do not want them to briefly max out on startup
   servo3.write(0); //Keep these at 0 if you are using servo outputs for motors
-  servo4.write(0);
-  servo5.write(0);
-  servo6.write(0);
-  servo7.write(0);
   
   delay(5);
 
@@ -374,10 +350,6 @@ void setup() {
   //Arm OneShot125 motors
   m1_command_PWM = 125; //Command OneShot125 ESC from 125 to 250us pulse length
   m2_command_PWM = 125;
-  m3_command_PWM = 125;
-  m4_command_PWM = 125;
-  m5_command_PWM = 125;
-  m6_command_PWM = 125;
   armMotors(); //Loop over commandMotors() until ESCs happily arm
   
   //Indicate entering main loop with 3 quick blinks
@@ -439,16 +411,12 @@ void loop() {
 
   //Command actuators
   commandMotors(); //Sends command pulses to each motor pin using OneShot125 protocol
-  //servo1.write(s1_command_PWM); //Writes PWM value to servo object
-  //servo2.write(s2_command_PWM);
-  //servo3.write(s3_command_PWM);
-  //servo4.write(s4_command_PWM);
-  //servo5.write(s5_command_PWM);
-  //servo6.write(s6_command_PWM);
-  //servo7.write(s7_command_PWM);
+  servo1.write(s1_command_PWM); //Writes PWM value to servo object
+  servo2.write(s2_command_PWM);
+  servo3.write(s3_command_PWM);
     
   //Get vehicle commands for next loop iteration
-  //getCommands(); //Pulls current available radio commands
+  getCommands(); //Pulls current available radio commands
   failSafe(); //Prevent failures in event of bad receiver connection, defaults to failsafe values assigned in setup
   
   //Regulate loop rate
@@ -508,17 +476,9 @@ void controlMixer() {
 
     m1_command_scaled=mL_scaled;
     m2_command_scaled=mR_scaled;
-    m3_command_scaled = 0;
-    m4_command_scaled = 0;
-    m5_command_scaled = 0;
-    m6_command_scaled = 0;
     s1_command_scaled = sL_scaled;
     s2_command_scaled = sR_scaled;
     s3_command_scaled = sE_scaled;
-    s4_command_scaled = 0;
-    s5_command_scaled = 0;
-    s6_command_scaled = 0;
-    s7_command_scaled = 0;
  
 }
 
@@ -1166,34 +1126,18 @@ void scaleCommands() {
   //Scaled to 125us - 250us for oneshot125 protocol
   m1_command_PWM = m1_command_scaled*125 + 125;
   m2_command_PWM = m2_command_scaled*125 + 125;
-  m3_command_PWM = m3_command_scaled*125 + 125;
-  m4_command_PWM = m4_command_scaled*125 + 125;
-  m5_command_PWM = m5_command_scaled*125 + 125;
-  m6_command_PWM = m6_command_scaled*125 + 125;
   //Constrain commands to motors within oneshot125 bounds
   m1_command_PWM = constrain(m1_command_PWM, 125, 250);
   m2_command_PWM = constrain(m2_command_PWM, 125, 250);
-  m3_command_PWM = constrain(m3_command_PWM, 125, 250);
-  m4_command_PWM = constrain(m4_command_PWM, 125, 250);
-  m5_command_PWM = constrain(m5_command_PWM, 125, 250);
-  m6_command_PWM = constrain(m6_command_PWM, 125, 250);
 
   //Scaled to 0-180 for servo library
   s1_command_PWM = s1_command_scaled*180;
   s2_command_PWM = s2_command_scaled*180;
   s3_command_PWM = s3_command_scaled*180;
-  s4_command_PWM = s4_command_scaled*180;
-  s5_command_PWM = s5_command_scaled*180;
-  s6_command_PWM = s6_command_scaled*180;
-  s7_command_PWM = s7_command_scaled*180;
   //Constrain commands to servos within servo library bounds
   s1_command_PWM = constrain(s1_command_PWM, 0, 180);
   s2_command_PWM = constrain(s2_command_PWM, 0, 180);
   s3_command_PWM = constrain(s3_command_PWM, 0, 180);
-  s4_command_PWM = constrain(s4_command_PWM, 0, 180);
-  s5_command_PWM = constrain(s5_command_PWM, 0, 180);
-  s6_command_PWM = constrain(s6_command_PWM, 0, 180);
-  s7_command_PWM = constrain(s7_command_PWM, 0, 180);
 
 }
 
@@ -1312,14 +1256,10 @@ void commandMotors() {
   //Write all motor pins high
   digitalWrite(m1Pin, HIGH);
   digitalWrite(m2Pin, HIGH);
-  digitalWrite(m3Pin, HIGH);
-  digitalWrite(m4Pin, HIGH);
-  digitalWrite(m5Pin, HIGH);
-  digitalWrite(m6Pin, HIGH);
   pulseStart = micros();
 
   //Write each motor pin low as correct pulse length is reached
-  while (wentLow < 6 ) { //Keep going until final (6th) pulse is finished, then done
+  while (wentLow < 2 ) { //Keep going until final (6th) pulse is finished, then done
     timer = micros();
     if ((m1_command_PWM <= timer - pulseStart) && (flagM1==0)) {
       digitalWrite(m1Pin, LOW);
@@ -1331,26 +1271,7 @@ void commandMotors() {
       wentLow = wentLow + 1;
       flagM2 = 1;
     }
-    if ((m3_command_PWM <= timer - pulseStart) && (flagM3==0)) {
-      digitalWrite(m3Pin, LOW);
-      wentLow = wentLow + 1;
-      flagM3 = 1;
-    }
-    if ((m4_command_PWM <= timer - pulseStart) && (flagM4==0)) {
-      digitalWrite(m4Pin, LOW);
-      wentLow = wentLow + 1;
-      flagM4 = 1;
-    } 
-    if ((m5_command_PWM <= timer - pulseStart) && (flagM5==0)) {
-      digitalWrite(m5Pin, LOW);
-      wentLow = wentLow + 1;
-      flagM5 = 1;
-    } 
-    if ((m6_command_PWM <= timer - pulseStart) && (flagM6==0)) {
-      digitalWrite(m6Pin, LOW);
-      wentLow = wentLow + 1;
-      flagM6 = 1;
-    } 
+    
   }
 }
 
@@ -1390,17 +1311,9 @@ void calibrateESCs() {
       
       m1_command_scaled = thro_des;
       m2_command_scaled = thro_des;
-      m3_command_scaled = thro_des;
-      m4_command_scaled = thro_des;
-      m5_command_scaled = thro_des;
-      m6_command_scaled = thro_des;
       s1_command_scaled = thro_des;
       s2_command_scaled = thro_des;
       s3_command_scaled = thro_des;
-      s4_command_scaled = thro_des;
-      s5_command_scaled = thro_des;
-      s6_command_scaled = thro_des;
-      s7_command_scaled = thro_des;
       scaleCommands(); //Scales motor commands to 125 to 250 range (oneshot125 protocol) and servo PWM commands to 0 to 180 (for servo library)
     
       //throttleCut(); //Directly sets motor commands to low based on state of ch5
@@ -1408,10 +1321,6 @@ void calibrateESCs() {
       servo1.write(s1_command_PWM); 
       servo2.write(s2_command_PWM);
       servo3.write(s3_command_PWM);
-      servo4.write(s4_command_PWM);
-      servo5.write(s5_command_PWM);
-      servo6.write(s6_command_PWM);
-      servo7.write(s7_command_PWM);
       commandMotors(); //Sends command pulses to each motor pin using OneShot125 protocol
       
       //printRadioData(); //Radio pwm values (expected: 1000 to 2000)
@@ -1496,19 +1405,11 @@ void throttleCut() {
   if (channel_5_pwm > 1500) {
     m1_command_PWM = 120;
     m2_command_PWM = 120;
-    m3_command_PWM = 120;
-    m4_command_PWM = 120;
-    m5_command_PWM = 120;
-    m6_command_PWM = 120;
     
     //Uncomment if using servo PWM variables to control motor ESCs
     //s1_command_PWM = 0;
     //s2_command_PWM = 0;
     //s3_command_PWM = 0;
-    //s4_command_PWM = 0;
-    //s5_command_PWM = 0;
-    //s6_command_PWM = 0;
-    //s7_command_PWM = 0;
   }
 }
 
@@ -1705,15 +1606,7 @@ void printMotorCommands() {
     Serial.print(F("m1_command: "));
     Serial.print(m1_command_PWM);
     Serial.print(F(" m2_command: "));
-    Serial.print(m2_command_PWM);
-    Serial.print(F(" m3_command: "));
-    Serial.print(m3_command_PWM);
-    Serial.print(F(" m4_command: "));
-    Serial.print(m4_command_PWM);
-    Serial.print(F(" m5_command: "));
-    Serial.print(m5_command_PWM);
-    Serial.print(F(" m6_command: "));
-    Serial.println(m6_command_PWM);
+    Serial.println(m2_command_PWM);
   }
 }
 
@@ -1725,15 +1618,7 @@ void printServoCommands() {
     Serial.print(F(" s2_command: "));
     Serial.print(s2_command_PWM);
     Serial.print(F(" s3_command: "));
-    Serial.print(s3_command_PWM);
-    Serial.print(F(" s4_command: "));
-    Serial.print(s4_command_PWM);
-    Serial.print(F(" s5_command: "));
-    Serial.print(s5_command_PWM);
-    Serial.print(F(" s6_command: "));
-    Serial.print(s6_command_PWM);
-    Serial.print(F(" s7_command: "));
-    Serial.println(s7_command_PWM);
+    Serial.println(s3_command_PWM);
   }
 }
 
