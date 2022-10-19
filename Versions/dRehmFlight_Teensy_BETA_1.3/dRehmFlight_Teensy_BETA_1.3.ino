@@ -212,24 +212,24 @@ float Kd_yaw = 0.00015;       //Yaw D-gain (be careful when increasing too high,
 //NOTE: Pin 13 is reserved for onboard LED, pins 18 and 19 are reserved for the MPU6050 IMU for default setup
 //Radio:
 //Note: If using SBUS, connect to pin 21 (RX5), if using DSM, connect to pin 15 (RX3)
-const int ch1Pin = 15; //throttle
-const int ch2Pin = 16; //ail
+const int ch1Pin = 8; //throttle
+const int ch2Pin = 12; //ail
 const int ch3Pin = 17; //ele
 const int ch4Pin = 20; //rudd
 const int ch5Pin = 21; //gear (throttle cut)
 const int ch6Pin = 22; //aux1 (free aux channel)
 const int PPM_Pin = 23;
 //OneShot125 ESC pin outputs:
-const int m1Pin = 9;//0;
-const int m2Pin = 8;//1;
+const int m1Pin = 15;
+const int m2Pin = 16;
 const int m3Pin = 0;
 const int m4Pin = 1;
 const int m5Pin = 2;
 const int m6Pin = 3;
 //PWM servo or ESC outputs:
-const int servo1Pin = 12;
-const int servo2Pin = 11;
-const int servo3Pin = 10;
+const int servo1Pin = 9;
+const int servo2Pin = 10;
+const int servo3Pin = 11;
 const int servo4Pin = 4;
 const int servo5Pin = 5;
 const int servo6Pin = 6;
