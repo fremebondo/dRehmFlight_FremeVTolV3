@@ -30,9 +30,9 @@ Everyone that sends me pictures and videos of your flying creations! -Nick
 //                                                 USER-SPECIFIED DEFINES                                                 //                                                                 
 //========================================================================================================================//
 
-#define SKIP_IMU
+//#define SKIP_IMU
 
-#define LOOPRATE 1000
+#define LOOPRATE 200
 //Uncomment only one receiver type
 //#define USE_PWM_RX
 //#define USE_PPM_RX
@@ -375,7 +375,7 @@ void loop() {
   loopBlink(); //Indicate we are in main loop with short blink every 1.5 seconds
 
   //Print data at 100hz (uncomment one at a time for troubleshooting) - SELECT ONE:
-  //printRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
+  printRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
   //printDesiredState();  //Prints desired vehicle state commanded in either degrees or deg/sec (expected: +/- maxAXIS for roll, pitch, yaw; 0 to 1 for throttle)
   //printGyroData();      //Prints filtered gyro data direct from IMU (expected: ~ -250 to 250, 0 at rest)
   //printAccelData();     //Prints filtered accelerometer data direct from IMU (expected: ~ -2 to 2; x,y 0 when level, z 1 when level)
@@ -385,14 +385,15 @@ void loop() {
   //printMixer();
   //printMotorCommands(); //Prints the values being written to the motors (expected: 120 to 250)
   //printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
-  printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
+  //printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
  
 
   //Get vehicle state
   #ifndef SKIP_IMU
   getIMUdata(); //Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
-  Madgwick(GyroX, -GyroY, -GyroZ, -AccX, AccY, AccZ, MagY, -MagX, MagZ, dt); //Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
   #endif
+  Madgwick(GyroX, -GyroY, -GyroZ, -AccX, AccY, AccZ, MagY, -MagX, MagZ, dt); //Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
+  
   
   //Compute desired state
   getDesState(); //Convert raw commands to normalized values based on saturated control limits
@@ -508,14 +509,16 @@ void IMUinit() {
    */
   #if defined USE_MPU6050_I2C
     Wire.begin();
-    Wire.setClock(1000000); //Note this is 2.5 times the spec sheet 400 kHz max...
+     Wire.setClock(600000); //Note this is 2.5 times the spec sheet 400 kHz max...
+   // Wire.setClock(1000000); //Note this is 2.5 times the spec sheet 400 kHz max...
     
     mpu6050.initialize();
     
     if (mpu6050.testConnection() == false) {
       Serial.println("MPU6050 initialization unsuccessful");
       Serial.println("Check MPU6050 wiring or try cycling power");
-      while(1) {}
+      while(1) {
+      Serial.println("MPU6050 initialization unsuccessful");}
     }
 
     //From the reset state all registers should be 0x00, so we should be at
