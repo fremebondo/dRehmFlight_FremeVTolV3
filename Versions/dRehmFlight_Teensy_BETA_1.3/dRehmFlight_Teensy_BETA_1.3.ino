@@ -510,7 +510,7 @@ void controlMixer() {
     m5_command_scaled = 0;
     m6_command_scaled = 0;
     s1_command_scaled = sL_scaled;
-    s2_command_scaled = sR_scaled;
+    s2_command_scaled = 1-sR_scaled;
     s3_command_scaled = sE_scaled;
     s4_command_scaled = 0;
     s5_command_scaled = 0;
