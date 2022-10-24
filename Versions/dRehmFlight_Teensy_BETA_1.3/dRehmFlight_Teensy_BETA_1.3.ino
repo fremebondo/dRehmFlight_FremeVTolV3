@@ -1152,8 +1152,8 @@ void getCommands() {
     if (sbus.read(&sbusChannels[0], &sbusFailSafe, &sbusLostFrame))
     {
       //sBus scaling below is for Taranis-Plus and X4R-SB
-      float scale = 0.615;  
-      float bias  = 895.0; 
+      float scale = 0.626;  
+      float bias  = 882.0; 
       channel_1_pwm = sbusChannels[0] * scale + bias;
       channel_2_pwm = sbusChannels[1] * scale + bias;
       channel_3_pwm = sbusChannels[2] * scale + bias;
