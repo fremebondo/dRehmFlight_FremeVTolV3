@@ -31,6 +31,7 @@ Everyone that sends me pictures and videos of your flying creations! -Nick
 //========================================================================================================================//
 
 //#define SKIP_IMU
+#define FS_MAXCOUNT 2000
 
 //Uncomment only one receiver type
 //#define USE_PWM_RX
@@ -153,7 +154,9 @@ unsigned long channel_2_fs = 1500; //ail
 unsigned long channel_3_fs = 1500; //elev
 unsigned long channel_4_fs = 1500; //rudd
 unsigned long channel_5_fs = 2000; //gear, greater than 1500 = throttle cut
-unsigned long channel_6_fs = 2000; //aux1
+unsigned long channel_6_fs = 1000; //hover
+bool isFailsafe = true; 
+unsigned int countFailsafe = FS_MAXCOUNT; 
 
 //Filter parameters - Defaults tuned for 2kHz loop rate; Do not touch unless you know what you are doing:
 float B_madgwick = 0.04;  //Madgwick filter parameter
@@ -189,9 +192,9 @@ float Kp_roll_angle = 0.2;    //Roll P-gain - angle mode
 float Ki_roll_angle = 0.3;    //Roll I-gain - angle mode
 float Kd_roll_angle = 0.05;   //Roll D-gain - angle mode (has no effect on controlANGLE2)
 float B_loop_roll = 0.9;      //Roll damping term for controlANGLE2(), lower is more damping (must be between 0 to 1)
-float Kp_pitch_angle = 0.2;   //Pitch P-gain - angle mode
-float Ki_pitch_angle = 0.3;   //Pitch I-gain - angle mode
-float Kd_pitch_angle = 0.05;  //Pitch D-gain - angle mode (has no effect on controlANGLE2)
+float Kp_pitch_angle = 0.8;//0.2;   //Pitch P-gain - angle mode
+float Ki_pitch_angle = 1;//0.3;   //Pitch I-gain - angle mode
+float Kd_pitch_angle = 0.2;//0.05;  //Pitch D-gain - angle mode (has no effect on controlANGLE2)
 float B_loop_pitch = 0.9;     //Pitch damping term for controlANGLE2(), lower is more damping (must be between 0 to 1)
 
 float Kp_roll_rate = 0.15;    //Roll P-gain - rate mode
@@ -400,7 +403,7 @@ void loop() {
   loopBlink(); //Indicate we are in main loop with short blink every 1.5 seconds
 
   //Print data at 100hz (uncomment one at a time for troubleshooting) - SELECT ONE:
-  //printRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
+  printRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
   //printDesiredState();  //Prints desired vehicle state commanded in either degrees or deg/sec (expected: +/- maxAXIS for roll, pitch, yaw; 0 to 1 for throttle)
   //printGyroData();      //Prints filtered gyro data direct from IMU (expected: ~ -250 to 250, 0 at rest)
   //printAccelData();     //Prints filtered accelerometer data direct from IMU (expected: ~ -2 to 2; x,y 0 when level, z 1 when level)
@@ -409,15 +412,17 @@ void loop() {
   //printPIDoutput();     //Prints computed stabilized PID variables from controller and desired setpoint (expected: ~ -1 to 1)
   //printMixer();
   //printMotorCommands(); //Prints the values being written to the motors (expected: 120 to 250)
-  printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
+  //printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
   //printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
- 
+  //printRollAxisHover();
+  //printPitchAxisHover();
 
   //Get vehicle state
   #ifndef SKIP_IMU
   getIMUdata(); //Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
-  Madgwick(GyroX, -GyroY, -GyroZ, -AccX, AccY, AccZ, MagY, -MagX, MagZ, dt); //Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
   #endif
+  Madgwick(GyroX, -GyroY, -GyroZ, -AccX, AccY, AccZ, MagY, -MagX, MagZ, dt); //Updates roll_IMU, pitch_IMU, and yaw_IMU angle estimates (degrees)
+  
   
   //Compute desired state
   getDesState(); //Convert raw commands to normalized values based on saturated control limits
@@ -447,7 +452,7 @@ void loop() {
   //Get vehicle commands for next loop iteration
   getCommands(); //Pulls current available radio commands
   failSafe(); //Prevent failures in event of bad receiver connection, defaults to failsafe values assigned in setup
-
+  
   //Regulate loop rate
   loopRate(2000); //Do not exceed 2000Hz, all filter parameters tuned to 2000Hz by default
 }
@@ -495,7 +500,7 @@ void controlMixer() {
     float sR_ff = trimR + ff_tilt - roll_PID; //Tilt right servo
     float sE_ff = 0.5 + pitch_PID;           //Elevator servo
 
-    fader = floatFaderLinear2(fader,channel_6_pwm>1500,0,1,5,2,2000);
+    fader = floatFaderLinear2(fader,channel_6_pwm>1500,0,1,5,2,LOOPRATE);
   
     mL_scaled = (1-fader)*mL_hov + (fader)*mL_ff;
     mR_scaled = (1-fader)*mR_hov + (fader)*mR_ff;
@@ -520,23 +525,6 @@ void controlMixer() {
 }
 
 
-void printMixer() {
-  if (current_time - print_counter > 10000) {
-    print_counter = micros();
-    Serial.print(F(" fader: "));
-    Serial.print(fader);
-    Serial.print(F(" mL_scaled: "));
-    Serial.print(mL_scaled);
-    Serial.print(F(" mR_scaled: "));
-    Serial.print(mR_scaled);
-    Serial.print(F(" sL_scaled: "));
-    Serial.print(sL_scaled);
-    Serial.print(F(" sR_scaled: "));
-    Serial.print(sR_scaled);
-    Serial.print(F(" sE_scaled: "));
-    Serial.println(sE_scaled);
-  }
-}
 
 void IMUinit() {
   //DESCRIPTION: Initialize IMU
@@ -552,7 +540,8 @@ void IMUinit() {
     if (mpu6050.testConnection() == false) {
       Serial.println("MPU6050 initialization unsuccessful");
       Serial.println("Check MPU6050 wiring or try cycling power");
-      while(1) {}
+      while(1) {
+      Serial.println("MPU6050 initialization unsuccessful");}
     }
 
     //From the reset state all registers should be 0x00, so we should be at
@@ -1223,8 +1212,14 @@ void getCommands() {
       channel_4_pwm = sbusChannels[3] * scale + bias;
       channel_5_pwm = sbusChannels[4] * scale + bias;
       channel_6_pwm = sbusChannels[5] * scale + bias; 
+      if (sbusLostFrame || sbusFailSafe) countFailsafe++;
+      else {
+        countFailsafe=0;
+      }
+    } else {
+      if (countFailsafe<FS_MAXCOUNT) countFailsafe++;
     }
-
+  
   #elif defined USE_DSM_RX
     if (DSM.timedOut(micros())) {
         //Serial.println("*** DSM RX TIMED OUT ***");
@@ -1281,13 +1276,16 @@ void failSafe() {
   if (channel_6_pwm > maxVal || channel_6_pwm < minVal) check6 = 1;
 
   //If any failures, set to default failsafe values
-  if ((check1 + check2 + check3 + check4 + check5 + check6) > 0) {
+  if ((check1 + check2 + check3 + check4 + check5 + check6) > 0 || countFailsafe>=FS_MAXCOUNT) {
+    isFailsafe=true;
     channel_1_pwm = channel_1_fs;
     channel_2_pwm = channel_2_fs;
     channel_3_pwm = channel_3_fs;
     channel_4_pwm = channel_4_fs;
     channel_5_pwm = channel_5_fs;
     channel_6_pwm = channel_6_fs;
+  } else {
+     isFailsafe=false;
   }
 }
 
@@ -1581,7 +1579,7 @@ void loopBlink() {
    */
   if (current_time - blink_counter > blink_delay) {
     blink_counter = micros();
-    digitalWrite(13, blinkAlternate); //Pin 13 is built in LED
+    digitalWrite(13, isFailsafe || blinkAlternate); //Pin 13 is built in LED
     
     if (blinkAlternate == 1) {
       blinkAlternate = 0;
@@ -1604,9 +1602,82 @@ void setupBlink(int numBlinks,int upTime, int downTime) {
   }
 }
 
+
+void printMixer() {
+  if (current_time - print_counter > 10000) {
+    print_counter = micros();
+    Serial.print(F(" fader: "));
+    Serial.print(fader);
+    Serial.print(F(" mL_scaled: "));
+    Serial.print(mL_scaled);
+    Serial.print(F(" mR_scaled: "));
+    Serial.print(mR_scaled);
+    Serial.print(F(" sL_scaled: "));
+    Serial.print(sL_scaled);
+    Serial.print(F(" sR_scaled: "));
+    Serial.print(sR_scaled);
+    Serial.print(F(" sE_scaled: "));
+    Serial.println(sE_scaled);
+  }
+}
+
+void printRollAxisHover() {
+  if (current_time - print_counter > 10000) {
+    print_counter = micros();
+    Serial.print(F(" roll_des: "));
+    Serial.print(roll_des);
+    Serial.print(F(" roll_imu: "));
+    Serial.print(roll_IMU);
+    Serial.print(F(" roll_PID: "));
+    Serial.print(roll_PID);
+    Serial.print(F(" mL_scaled: "));
+    Serial.print(mL_scaled);
+    Serial.print(F(" mR_scaled: "));
+    Serial.println(mR_scaled);
+  }
+}
+
+void printPitchAxisHover() {
+  if (current_time - print_counter > 10000) {
+    print_counter = micros();
+    Serial.print(F(" pitch_des: "));
+    Serial.print(pitch_des);
+    Serial.print(F(" pitch_imu: "));
+    Serial.print(pitch_IMU);
+    Serial.print(F(" pitch_PID: "));
+    Serial.print(pitch_PID);
+    Serial.print(F(" sL scaled: "));
+    Serial.print(sL_scaled);
+    Serial.print(F(" sR scaled: "));
+    Serial.print(sR_scaled);
+    Serial.print(F(" sE scaled: "));
+    Serial.println(sE_scaled);
+  }
+}
+
+void printYawAxisHover() {
+  if (current_time - print_counter > 10000) {
+    print_counter = micros();
+    Serial.print(F(" yaw_des: "));
+    Serial.print(yaw_des);
+    Serial.print(F(" yaw_imu: "));
+    Serial.print(yaw_IMU);
+    Serial.print(F(" yaw_PID: "));
+    Serial.print(yaw_PID);
+    Serial.print(F(" sL scaled: "));
+    Serial.print(sL_scaled);
+    Serial.print(F(" sR scaled: "));
+    Serial.println(sR_scaled);
+  }
+}
+
 void printRadioData() {
   if (current_time - print_counter > 10000) {
     print_counter = micros();
+    Serial.print(F(" FS: "));
+    Serial.print(isFailsafe);
+    Serial.print(F(" FsCount: "));
+    Serial.print(countFailsafe);
     Serial.print(F(" CH1: "));
     Serial.print(channel_1_pwm);
     Serial.print(F(" CH2: "));
