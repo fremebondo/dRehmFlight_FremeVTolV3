@@ -66,7 +66,8 @@ static const uint8_t num_DSM_channels = 6; //If using DSM RX, change this to mat
 
 #include <Wire.h>     //I2c communication
 #include <SPI.h>      //SPI communication
-#include <PWMServo.h> //Commanding any extra actuators, installed with teensyduino installer
+#include <Servo.h> //Commanding any extra actuators, installed with teensyduino installer
+#include <EEPROM.h>
 
 #if defined USE_SBUS_RX
   #include "src/SBUS/SBUS.h"   //sBus interface
@@ -313,6 +314,36 @@ void setup() {
   Serial.begin(500000); //USB serial
   delay(500);
   
+    
+
+  EEPROM.get(0*sizeof(float),AccErrorX);
+  EEPROM.get(1*sizeof(float),AccErrorY);
+  EEPROM.get(2*sizeof(float),AccErrorZ);
+  EEPROM.get(3*sizeof(float),GyroErrorX);
+  EEPROM.get(4*sizeof(float),GyroErrorY);
+  EEPROM.get(5*sizeof(float),GyroErrorZ);
+
+     Serial.print("float AccErrorX = ");
+      Serial.print(AccErrorX);
+      Serial.println(";");
+      Serial.print("float AccErrorY = ");
+      Serial.print(AccErrorY);
+      Serial.println(";");
+      Serial.print("float AccErrorZ = ");
+      Serial.print(AccErrorZ);
+      Serial.println(";");
+      
+      Serial.print("float GyroErrorX = ");
+      Serial.print(GyroErrorX);
+      Serial.println(";");
+      Serial.print("float GyroErrorY = ");
+      Serial.print(GyroErrorY);
+      Serial.println(";");
+      Serial.print("float GyroErrorZ = ");
+      Serial.print(GyroErrorZ);
+      Serial.println(";");
+
+  
   //Initialize all pins
   pinMode(13, OUTPUT); //Pin 13 LED blinker on board, do not modify 
   pinMode(m1Pin, OUTPUT);
@@ -402,6 +433,8 @@ void loop() {
 
   loopBlink(); //Indicate we are in main loop with short blink every 1.5 seconds
 
+  if (checkCalibCommand()) calculate_IMU_error();
+  
   //Print data at 100hz (uncomment one at a time for troubleshooting) - SELECT ONE:
   printRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
   //printDesiredState();  //Prints desired vehicle state commanded in either degrees or deg/sec (expected: +/- maxAXIS for roll, pitch, yaw; 0 to 1 for throttle)
@@ -652,7 +685,16 @@ void calculate_IMU_error() {
    */
   int16_t AcX,AcY,AcZ,GyX,GyY,GyZ;
   
-  //Read IMU values 12000 times
+  Serial.println("Calculating IMU errors");
+
+    AccErrorX  = 0;
+    AccErrorY  = 0;
+    AccErrorZ  = 0;
+    GyroErrorX = 0;
+    GyroErrorY = 0;
+    GyroErrorZ = 0;
+
+  //Read IMU values 10000 times
   int c = 0;
   while (c < 12000) {
     #if defined USE_MPU6050_I2C
@@ -705,7 +747,15 @@ void calculate_IMU_error() {
   Serial.print(GyroErrorZ);
   Serial.println(";");
 
-  Serial.println("Paste these values in user specified variables section and comment out calculate_IMU_error() in void setup.");
+  EEPROM.put(0*sizeof(float),AccErrorX);
+  EEPROM.put(1*sizeof(float),AccErrorY);
+  EEPROM.put(2*sizeof(float),AccErrorZ);
+  EEPROM.put(3*sizeof(float),GyroErrorX);
+  EEPROM.put(4*sizeof(float),GyroErrorY);
+  EEPROM.put(5*sizeof(float),GyroErrorZ);
+
+  Serial.println("Offsets saved in EEPROM");
+  //Serial.println("Paste these values in user specified variables section and comment out calculate_IMU_error() in void setup.");
 }
 
 void calibrateAttitude() {
@@ -1204,8 +1254,8 @@ void getCommands() {
     if (sbus.read(&sbusChannels[0], &sbusFailSafe, &sbusLostFrame))
     {
       //sBus scaling below is for Taranis-Plus and X4R-SB
-      float scale = 0.615;  
-      float bias  = 895.0; 
+      float scale = 0.626;  
+      float bias  = 882.0; 
       channel_1_pwm = sbusChannels[0] * scale + bias;
       channel_2_pwm = sbusChannels[1] * scale + bias;
       channel_3_pwm = sbusChannels[2] * scale + bias;
@@ -1606,6 +1656,12 @@ void setupBlink(int numBlinks,int upTime, int downTime) {
 void printMixer() {
   if (current_time - print_counter > 10000) {
     print_counter = micros();
+    Serial.print(F("roll_PID: "));
+    Serial.print(roll_PID);
+    Serial.print(F(" pitch_PID: "));
+    Serial.print(pitch_PID);
+    Serial.print(F(" yaw_PID: "));
+    Serial.print(yaw_PID);
     Serial.print(F(" fader: "));
     Serial.print(fader);
     Serial.print(F(" mL_scaled: "));
@@ -1811,6 +1867,25 @@ void printLoopRate() {
     Serial.print(F("dt = "));
     Serial.println(dt*1000000.0);
   }
+}
+
+
+bool checkCalibCommand() {
+  static int calib_loop_count=200;
+  if (channel_1_pwm<1050 && channel_4_pwm>1950 && channel_2_pwm<1050 && channel_3_pwm<1050 && channel_5_pwm>1500) {
+   
+    
+    if (calib_loop_count>=0) {
+      Serial.print("Hold ");
+      Serial.print(calib_loop_count);
+      Serial.println(" to calibrate...");
+      calib_loop_count--; 
+    } 
+  }else {
+    calib_loop_count=200;
+  }
+  
+  return calib_loop_count==0;
 }
 
 //=========================================================================================//
