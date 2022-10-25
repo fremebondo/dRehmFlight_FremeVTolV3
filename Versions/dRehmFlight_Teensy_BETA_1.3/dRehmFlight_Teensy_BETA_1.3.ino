@@ -515,7 +515,7 @@ void controlMixer() {
     m1_command_scaled=mL_scaled;
     m2_command_scaled=mR_scaled;
     s1_command_scaled = sL_scaled;
-    s2_command_scaled = sR_scaled;
+    s2_command_scaled =1- sR_scaled;
     s3_command_scaled = sE_scaled;
  
 }
@@ -1561,6 +1561,12 @@ void setupBlink(int numBlinks,int upTime, int downTime) {
 void printMixer() {
   if (current_time - print_counter > 10000) {
     print_counter = micros();
+    Serial.print(F("roll_PID: "));
+    Serial.print(roll_PID);
+    Serial.print(F(" pitch_PID: "));
+    Serial.print(pitch_PID);
+    Serial.print(F(" yaw_PID: "));
+    Serial.print(yaw_PID);
     Serial.print(F(" fader: "));
     Serial.print(fader);
     Serial.print(F(" mL_scaled: "));
