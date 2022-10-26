@@ -32,6 +32,7 @@ Everyone that sends me pictures and videos of your flying creations! -Nick
 
 //#define SKIP_IMU
 #define FS_MAXCOUNT 2000
+//#define MECH_SETUP_MODE
 
 //Uncomment only one receiver type
 //#define USE_PWM_RX
@@ -187,7 +188,7 @@ float GyroErrorZ = 10.41+0.278;
 float i_limit = 25.0;     //Integrator saturation level, mostly for safety (default 25.0)
 float maxRoll = 30.0;     //Max roll angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode 
 float maxPitch = 30.0;    //Max pitch angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
-float maxYaw = 160.0;     //Max yaw rate in deg/sec
+float maxYaw = 120.0;     //Max yaw rate in deg/sec
 
 float Kp_roll_angle = 0.2;    //Roll P-gain - angle mode 
 float Ki_roll_angle = 0.3;    //Roll I-gain - angle mode
@@ -205,7 +206,7 @@ float Kp_pitch_rate = 0.15;   //Pitch P-gain - rate mode
 float Ki_pitch_rate = 0.2;    //Pitch I-gain - rate mode
 float Kd_pitch_rate = 0.0002; //Pitch D-gain - rate mode (be careful when increasing too high, motors will begin to overheat!)
 
-float Kp_yaw = 0.3;           //Yaw P-gain
+float Kp_yaw = 0.2;           //Yaw P-gain
 float Ki_yaw = 0.05;          //Yaw I-gain
 float Kd_yaw = 0.00015;       //Yaw D-gain (be careful when increasing too high, motors will begin to overheat!)
 
@@ -436,7 +437,7 @@ void loop() {
   if (checkCalibCommand()) calculate_IMU_error();
   
   //Print data at 100hz (uncomment one at a time for troubleshooting) - SELECT ONE:
-  printRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
+  //printRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
   //printDesiredState();  //Prints desired vehicle state commanded in either degrees or deg/sec (expected: +/- maxAXIS for roll, pitch, yaw; 0 to 1 for throttle)
   //printGyroData();      //Prints filtered gyro data direct from IMU (expected: ~ -250 to 250, 0 at rest)
   //printAccelData();     //Prints filtered accelerometer data direct from IMU (expected: ~ -2 to 2; x,y 0 when level, z 1 when level)
@@ -448,7 +449,7 @@ void loop() {
   //printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
   //printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
   //printRollAxisHover();
-  //printPitchAxisHover();
+  printPitchAxisHover();
 
   //Get vehicle state
   #ifndef SKIP_IMU
@@ -516,8 +517,10 @@ void controlMixer() {
    *channel_6_pwm - free auxillary channel, can be used to toggle things with an 'if' statement
    */
     
-    float trimL=0.3;
-    float trimR=0.3;
+    float trimL=0.2;
+    float trimR=0.2;
+    float maxTilt=0.95;
+    float ff_tilt = 0.52;
     //hovering
     float mL_hov = thro_des + roll_PID; //Front left motor
     float mR_hov = thro_des - roll_PID; //Front right motor
@@ -526,7 +529,6 @@ void controlMixer() {
     float sE_hov = 0.5 + pitch_PID;           //Elevator servo
 
     //forward flight
-    float ff_tilt = 0.5;
     float mL_ff = thro_des + yaw_PID; //Front left motor
     float mR_ff = thro_des - yaw_PID; //Front right motor
     float sL_ff = trimL + ff_tilt + roll_PID; //Tilt left servo
@@ -540,6 +542,43 @@ void controlMixer() {
     sL_scaled = (1-fader)*sL_hov + (fader)*sL_ff;
     sR_scaled = (1-fader)*sR_hov + (fader)*sR_ff;
     sE_scaled = (1-fader)*sE_hov + (fader)*sE_ff;
+
+    sL_scaled=constrain(sL_scaled,0,maxTilt);
+    sR_scaled=constrain(sR_scaled,0,maxTilt);
+    
+#ifdef MECH_SETUP_MODE
+    if (channel_6_pwm<1200) {
+    sL_scaled = 0;
+    sR_scaled = 0;
+    sE_scaled = 0;
+    mL_scaled = 0;
+    mR_scaled = 0;
+    } else if (channel_6_pwm<1800) {
+    sL_scaled = trimL;
+    sR_scaled = trimR;
+    sE_scaled = 0.5;
+    mL_scaled = 0;
+    mR_scaled = 0;
+    } else if (channel_6_pwm<1800) {
+    sL_scaled = trimL;
+    sR_scaled = trimR;
+    sE_scaled = 0.5;
+    mL_scaled = 0;
+    mR_scaled = 0;
+    } else if (channel_5_pwm<1500) {
+    sL_scaled=trimL + ff_tilt;
+    sR_scaled=trimR + ff_tilt;
+    sE_scaled = 0.5;
+    mL_scaled = 0;
+    mR_scaled = 0;
+    } else {
+    sL_scaled = maxTilt;
+    sR_scaled = maxTilt;
+    sE_scaled = 1;
+    mL_scaled = 0;
+    mR_scaled = 0;
+    } 
+#endif
 
     m1_command_scaled=mL_scaled;
     m2_command_scaled=mR_scaled;
