@@ -67,7 +67,7 @@ static const uint8_t num_DSM_channels = 6; //If using DSM RX, change this to mat
 
 #include <Wire.h>     //I2c communication
 #include <SPI.h>      //SPI communication
-#include <Servo.h> //Commanding any extra actuators, installed with teensyduino installer
+#include <PWMServo.h> //Commanding any extra actuators, installed with teensyduino installer
 #include <EEPROM.h>
 
 #if defined USE_SBUS_RX
@@ -1301,7 +1301,7 @@ void getCommands() {
       channel_4_pwm = sbusChannels[3] * scale + bias;
       channel_5_pwm = sbusChannels[4] * scale + bias;
       channel_6_pwm = sbusChannels[5] * scale + bias; 
-      if (sbusLostFrame || sbusFailSafe) countFailsafe++;
+      if ((sbusLostFrame || sbusFailSafe) && countFailsafe<FS_MAXCOUNT) countFailsafe++;
       else {
         countFailsafe=0;
       }
@@ -1668,7 +1668,7 @@ void loopBlink() {
    */
   if (current_time - blink_counter > blink_delay) {
     blink_counter = micros();
-    digitalWrite(13, isFailsafe || blinkAlternate); //Pin 13 is built in LED
+    digitalWrite(13, blinkAlternate || isFailsafe); //Pin 13 is built in LED
     
     if (blinkAlternate == 1) {
       blinkAlternate = 0;
