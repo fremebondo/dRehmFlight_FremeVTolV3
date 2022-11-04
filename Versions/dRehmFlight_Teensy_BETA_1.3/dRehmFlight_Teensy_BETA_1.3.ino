@@ -33,6 +33,8 @@ Everyone that sends me pictures and videos of your flying creations! -Nick
 //#define SKIP_IMU
 #define FS_MAXCOUNT 2000
 //#define MECH_SETUP_MODE
+//#define READ_EEPROM_ERRORS
+#define REVERSE_YAW 1
 
 //Uncomment only one receiver type
 //#define USE_PWM_RX
@@ -232,9 +234,9 @@ const int m4Pin = 1;
 const int m5Pin = 2;
 const int m6Pin = 3;
 //PWM servo or ESC outputs:
-const int servo1Pin = 9;
-const int servo2Pin = 10;
-const int servo3Pin = 11;
+const int servo1Pin = 11;
+const int servo2Pin = 9;
+const int servo3Pin = 10;
 const int servo4Pin = 4;
 const int servo5Pin = 5;
 const int servo6Pin = 6;
@@ -315,6 +317,7 @@ void setup() {
   Serial.begin(500000); //USB serial
   delay(500);
   
+  #ifdef READ_EEPROM_ERRORS
     
 
   EEPROM.get(0*sizeof(float),AccErrorX);
@@ -343,7 +346,7 @@ void setup() {
       Serial.print("float GyroErrorZ = ");
       Serial.print(GyroErrorZ);
       Serial.println(";");
-
+  #endif
   
   //Initialize all pins
   pinMode(13, OUTPUT); //Pin 13 LED blinker on board, do not modify 
@@ -449,7 +452,8 @@ void loop() {
   //printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
   //printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
   //printRollAxisHover();
-  printPitchAxisHover();
+  //printPitchAxisHover();
+ //printYawAxisHover();
 
   //Get vehicle state
   #ifndef SKIP_IMU
@@ -459,7 +463,7 @@ void loop() {
   
   
   //Compute desired state
-  getDesState(); //Convert raw commands to normalized values based on saturated control limits
+  getDesState(REVERSE_YAW); //Convert raw commands to normalized values based on saturated control limits
   
   //PID Controller - SELECT ONE:
   controlANGLE(); //Stabilize on angle setpoint
@@ -524,18 +528,18 @@ void controlMixer() {
     //hovering
     float mL_hov = thro_des + roll_PID; //Front left motor
     float mR_hov = thro_des - roll_PID; //Front right motor
-    float sL_hov = trimL + pitch_PID + yaw_PID; //Tilt left servo
-    float sR_hov = trimR + pitch_PID - yaw_PID; //Tilt right servo
+    float sL_hov = trimL + pitch_PID - yaw_PID; //Tilt left servo
+    float sR_hov = trimR + pitch_PID + yaw_PID; //Tilt right servo
     float sE_hov = 0.5 + pitch_PID;           //Elevator servo
 
     //forward flight
-    float mL_ff = thro_des + yaw_PID; //Front left motor
-    float mR_ff = thro_des - yaw_PID; //Front right motor
+    float mL_ff = thro_des - yaw_PID; //Front left motor
+    float mR_ff = thro_des + yaw_PID; //Front right motor
     float sL_ff = trimL + ff_tilt + roll_PID; //Tilt left servo
     float sR_ff = trimR + ff_tilt - roll_PID; //Tilt right servo
     float sE_ff = 0.5 + pitch_PID;           //Elevator servo
 
-    fader = floatFaderLinear2(fader,channel_6_pwm>1500,0,1,5,2,LOOPRATE);
+    fader = floatFaderLinear2(fader,channel_6_pwm>1500,0,1,5,2,2000);
   
     mL_scaled = (1-fader)*mL_hov + (fader)*mL_ff;
     mR_scaled = (1-fader)*mR_hov + (fader)*mR_ff;
@@ -1017,7 +1021,7 @@ void Madgwick6DOF(float gx, float gy, float gz, float ax, float ay, float az, fl
   yaw_IMU = -atan2(q1*q2 + q0*q3, 0.5f - q2*q2 - q3*q3)*57.29577951; //degrees
 }
 
-void getDesState() {
+void getDesState(bool reverse_yaw) {
   //DESCRIPTION: Normalizes desired control values to appropriate values
   /*
    * Updates the desired state variables thro_des, roll_des, pitch_des, and yaw_des. These are computed by using the raw
@@ -1030,6 +1034,7 @@ void getDesState() {
   roll_des = (channel_2_pwm - 1500.0)/500.0; //Between -1 and 1
   pitch_des = (channel_3_pwm - 1500.0)/500.0; //Between -1 and 1
   yaw_des = (channel_4_pwm - 1500.0)/500.0; //Between -1 and 1
+  if (reverse_yaw) yaw_des*=-1;
   roll_passthru = roll_des/2.0; //Between -0.5 and 0.5
   pitch_passthru = pitch_des/2.0; //Between -0.5 and 0.5
   yaw_passthru = yaw_des/2.0; //Between -0.5 and 0.5
@@ -1467,10 +1472,10 @@ void calibrateESCs() {
 
       getCommands(); //Pulls current available radio commands
       failSafe(); //Prevent failures in event of bad receiver connection, defaults to failsafe values assigned in setup
-      getDesState(); //Convert raw commands to normalized values based on saturated control limits
+      getDesState(REVERSE_YAW); //Convert raw commands to normalized values based on saturated control limits
       getIMUdata(); //Pulls raw gyro, accelerometer, and magnetometer data from IMU and LP filters to remove noise
       Madgwick(GyroX, -GyroY, -GyroZ, -AccX, AccY, AccZ, MagY, -MagX, MagZ, dt); //Updates roll_IMU, pitch_IMU, and yaw_IMU (degrees)
-      getDesState(); //Convert raw commands to normalized values based on saturated control limits
+      getDesState(REVERSE_YAW); //Convert raw commands to normalized values based on saturated control limits
       
       m1_command_scaled = thro_des;
       m2_command_scaled = thro_des;
