@@ -32,7 +32,6 @@ Everyone that sends me pictures and videos of your flying creations! -Nick
 
 //#define SKIP_IMU
 #define FS_MAXCOUNT 2000
-//#define MECH_SETUP_MODE
 #define READ_EEPROM_ERRORS
 #define REVERSE_YAW 1
 
@@ -161,6 +160,7 @@ unsigned long channel_5_fs = 2000; //gear, greater than 1500 = throttle cut
 unsigned long channel_6_fs = 1000; //hover
 bool isFailsafe = true; 
 unsigned int countFailsafe = FS_MAXCOUNT; 
+bool isMechSetupMode = false;
 
 //Filter parameters - Defaults tuned for 2kHz loop rate; Do not touch unless you know what you are doing:
 float B_madgwick = 0.04;  //Madgwick filter parameter
@@ -381,6 +381,7 @@ void setup() {
   channel_4_pwm = channel_4_fs;
   channel_5_pwm = channel_5_fs;
   channel_6_pwm = channel_6_fs;
+  isFailsafe=true;
 
   //Initialize IMU communication
   #ifndef SKIP_IMU
@@ -437,6 +438,7 @@ void loop() {
 
   loopBlink(); //Indicate we are in main loop with short blink every 1.5 seconds
 
+  if (checkMechSetupCommand()) isMechSetupMode=!isMechSetupMode;
   if (checkCalibCommand()) calculate_IMU_error();
   
   //Print data at 100hz (uncomment one at a time for troubleshooting) - SELECT ONE:
@@ -551,7 +553,7 @@ void controlMixer() {
     sL_scaled=constrain(sL_scaled,0,maxTilt);
     sR_scaled=constrain(sR_scaled,0,maxTilt);
     
-#ifdef MECH_SETUP_MODE
+if (isMechSetupMode) {
     if (channel_6_pwm<1200) {
     sL_scaled = 0;
     sR_scaled = 0;
@@ -564,15 +566,9 @@ void controlMixer() {
     sE_scaled = 0.5;
     mL_scaled = 0;
     mR_scaled = 0;
-    } else if (channel_6_pwm<1800) {
-    sL_scaled = trimL;
-    sR_scaled = trimR;
-    sE_scaled = 0.5;
-    mL_scaled = 0;
-    mR_scaled = 0;
     } else if (channel_5_pwm<1500) {
-    sL_scaled=trimL + ff_tilt;
-    sR_scaled=trimR + ff_tilt;
+    sL_scaled=trimL + ff_tilt_L;
+    sR_scaled=trimR + ff_tilt_R;
     sE_scaled = 0.5;
     mL_scaled = 0;
     mR_scaled = 0;
@@ -583,7 +579,7 @@ void controlMixer() {
     mL_scaled = 0;
     mR_scaled = 0;
     } 
-#endif
+}
 
     m1_command_scaled=mL_scaled;
     m2_command_scaled=mR_scaled;
@@ -1678,11 +1674,11 @@ void loopBlink() {
     
     if (blinkAlternate == 1) {
       blinkAlternate = 0;
-      blink_delay = 100000;
+      blink_delay = isMechSetupMode?200000:100000;
       }
     else if (blinkAlternate == 0) {
       blinkAlternate = 1;
-      blink_delay = 1000000;
+      blink_delay = isMechSetupMode?200000:1000000;
       }
   }
 }
@@ -1917,7 +1913,7 @@ void printLoopRate() {
 
 bool checkCalibCommand() {
   static int calib_loop_count=200;
-  if (channel_1_pwm<1050 && channel_4_pwm>1950 && channel_2_pwm<1050 && channel_3_pwm<1050 && channel_5_pwm>1500) {
+  if (channel_1_pwm<1050 && channel_4_pwm>1950 && channel_2_pwm<1050 && channel_3_pwm<1050 && channel_5_pwm>1500 && !isFailsafe) {
    
     
     if (calib_loop_count>=0) {
@@ -1931,6 +1927,25 @@ bool checkCalibCommand() {
   }
   
   return calib_loop_count==0;
+}
+
+
+bool checkMechSetupCommand() {
+  static int mechsetup_loop_count=200;
+  if (channel_1_pwm>1950 && channel_4_pwm>1950 && channel_2_pwm<1050 && channel_3_pwm>1950 && channel_5_pwm>1500 && !isFailsafe) {
+   
+    
+    if (mechsetup_loop_count>=0) {
+      Serial.print("Hold ");
+      Serial.print(mechsetup_loop_count);
+      Serial.println(" to mech setup...");
+      mechsetup_loop_count--; 
+    } 
+  }else {
+    mechsetup_loop_count=200;
+  }
+  
+  return mechsetup_loop_count==0;
 }
 
 //=========================================================================================//
