@@ -538,8 +538,8 @@ void controlMixer() {
     //forward flight
     float mL_ff = thro_des - yaw_PID; //Front left motor
     float mR_ff = thro_des + yaw_PID; //Front right motor
-    float sL_ff = trimL + ff_tilt_L + roll_PID; //Tilt left servo
-    float sR_ff = trimR + ff_tilt_R - roll_PID; //Tilt right servo
+    float sL_ff = trimL + ff_tilt_L - roll_PID; //Tilt left servo
+    float sR_ff = trimR + ff_tilt_R + roll_PID; //Tilt right servo
     float sE_ff = 0.5 + pitch_PID;           //Elevator servo
 
     fader = floatFaderLinear2(fader,channel_6_pwm>1500,0,1,5,2,2000);
