@@ -34,6 +34,7 @@ Everyone that sends me pictures and videos of your flying creations! -Nick
 #define FS_MAXCOUNT 2000
 #define READ_EEPROM_ERRORS
 #define REVERSE_YAW 1
+#define SEPARATE_PID_PARAMS
 
 //Uncomment only one receiver type
 //#define USE_PWM_RX
@@ -211,6 +212,54 @@ float Kd_pitch_rate = 0.0002; //Pitch D-gain - rate mode (be careful when increa
 float Kp_yaw = 0.05;//0.2;           //Yaw P-gain
 float Ki_yaw = 0.02;//0.05;          //Yaw I-gain
 float Kd_yaw = 0.00015;       //Yaw D-gain (be careful when increasing too high, motors will begin to overheat!)
+
+
+//========================================================================================================================//
+//                                                  VTOL PID VARIABLES                                                    //                           
+//========================================================================================================================//                                          
+#ifdef SEPARATE_PID_PARAMS
+float HV_maxRoll = 30.0;          //Max roll angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode 
+float HV_maxPitch = 30.0;         //Max pitch angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
+float HV_maxYaw = 220.0;          //Max yaw rate in deg/sec
+float HV_Kp_roll = 0.2;           //Roll P-gain - angle mode 
+float HV_Ki_roll = 0.3;           //Roll I-gain - angle mode
+float HV_Kd_roll = 0.05;          //Roll D-gain - angle mode 
+float HV_Kp_pitch = 0.2;          //Pitch P-gain - angle mode
+float HV_Ki_pitch = 0.5;          //Pitch I-gain - angle mode
+float HV_Kd_pitch = 0.1;;         //Pitch D-gain - angle mode 
+float HV_Kp_yaw = 0.05;           //Yaw P-gain
+float HV_Ki_yaw = 0.02;;          //Yaw I-gain
+float HV_Kd_yaw = 0.00015;        //Yaw D-gain
+
+float FF_maxRoll = 45.0;          //Max roll angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode 
+float FF_maxPitch = 30.0;         //Max pitch angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
+float FF_maxYaw = 180.0;          //Max yaw rate in deg/sec
+float FF_Kp_roll = 0.2;           //Roll P-gain - angle mode 
+float FF_Ki_roll = 0.3;           //Roll I-gain - angle mode
+float FF_Kd_roll = 0.05;          //Roll D-gain - angle mode 
+float FF_Kp_pitch = 0.2;          //Pitch P-gain - angle mode
+float FF_Ki_pitch = 0.5;          //Pitch I-gain - angle mode
+float FF_Kd_pitch = 0.1;;         //Pitch D-gain - angle mode 
+float FF_Kp_yaw = 0.05;           //Yaw P-gain
+float FF_Ki_yaw = 0.02;           //Yaw I-gain
+float FF_Kd_yaw = 0.00015;        //Yaw D-gain
+
+#define INTERP(x)  ff_ratio*FF_##x + (1-ff_ratio)*HV_##x 
+void ScalePIDsParam(float ff_ratio) {
+maxRoll = INTERP(maxRoll);  
+maxPitch = INTERP(maxPitch);
+maxYaw = INTERP(maxYaw);
+Kp_roll_angle  = INTERP(Kp_roll);
+Ki_roll_angle = INTERP(Ki_roll);
+Kd_roll_angle = INTERP(Kd_roll);
+Kp_pitch_angle = INTERP(Kp_pitch);
+Ki_pitch_angle = INTERP(Ki_pitch);
+Kd_pitch_angle = INTERP(Kd_pitch);
+Kp_yaw = INTERP(Kp_yaw);
+Ki_yaw = INTERP(Ki_yaw);
+Kd_yaw = INTERP(Kd_yaw);
+}
+#endif
 
 //========================================================================================================================//
 //                                                     DECLARE PINS                                                       //                           
@@ -543,7 +592,10 @@ void controlMixer() {
     float sE_ff = 0.5 + pitch_PID;           //Elevator servo
 
     fader = floatFaderLinear2(fader,channel_6_pwm>1500,0,1,5,2,2000);
-  
+    #ifdef SEPARATE_PID_PARAMS
+    ScalePIDsParam(fader);
+    #endif
+    
     mL_scaled = (1-fader)*mL_hov + (fader)*mL_ff;
     mR_scaled = (1-fader)*mR_hov + (fader)*mR_ff;
     sL_scaled = (1-fader)*sL_hov + (fader)*sL_ff;
