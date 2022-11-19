@@ -221,15 +221,15 @@ float Kd_yaw = 0.00015;       //Yaw D-gain (be careful when increasing too high,
 float HV_maxRoll = 30.0;          //Max roll angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode 
 float HV_maxPitch = 30.0;         //Max pitch angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
 float HV_maxYaw = 220.0;          //Max yaw rate in deg/sec
-float HV_Kp_roll = 0.2;           //Roll P-gain - angle mode 
-float HV_Ki_roll = 0.3;           //Roll I-gain - angle mode
-float HV_Kd_roll = 0.05;          //Roll D-gain - angle mode 
-float HV_Kp_pitch = 0.2;          //Pitch P-gain - angle mode
-float HV_Ki_pitch = 0.5;          //Pitch I-gain - angle mode
-float HV_Kd_pitch = 0.1;;         //Pitch D-gain - angle mode 
-float HV_Kp_yaw = 0.05;           //Yaw P-gain
-float HV_Ki_yaw = 0.02;;          //Yaw I-gain
-float HV_Kd_yaw = 0.00015;        //Yaw D-gain
+float HV_Kp_roll = 0.3;//0.2;           //Roll P-gain - angle mode 
+float HV_Ki_roll = 0.4;//0.3;           //Roll I-gain - angle mode
+float HV_Kd_roll = 0.1;//0.05;          //Roll D-gain - angle mode 
+float HV_Kp_pitch = 0.7;//0.5;//0.2;          //Pitch P-gain - angle mode
+float HV_Ki_pitch = 0.7;//0.5;          //Pitch I-gain - angle mode
+float HV_Kd_pitch = 0.15;//0.1;;         //Pitch D-gain - angle mode 
+float HV_Kp_yaw = 0.09;//0.05;           //Yaw P-gain
+float HV_Ki_yaw = 0.15;;          //Yaw I-gain
+float HV_Kd_yaw = 0.00015;//0.00015        //Yaw D-gain
 
 float FF_maxRoll = 45.0;          //Max roll angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode 
 float FF_maxPitch = 30.0;         //Max pitch angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
@@ -491,7 +491,7 @@ void loop() {
   if (checkCalibCommand()) calculate_IMU_error();
   
   //Print data at 100hz (uncomment one at a time for troubleshooting) - SELECT ONE:
-  //printRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
+  //pprintRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
   //printDesiredState();  //Prints desired vehicle state commanded in either degrees or deg/sec (expected: +/- maxAXIS for roll, pitch, yaw; 0 to 1 for throttle)
   //printGyroData();      //Prints filtered gyro data direct from IMU (expected: ~ -250 to 250, 0 at rest)
   //printAccelData();     //Prints filtered accelerometer data direct from IMU (expected: ~ -2 to 2; x,y 0 when level, z 1 when level)
@@ -577,6 +577,7 @@ void controlMixer() {
     float maxTilt=0.95;
     float ff_tilt_L = 0.53;
     float ff_tilt_R = 0.52;
+    float ff_throttle_ratio = 0.7;
     //hovering
     float mL_hov = thro_des + roll_PID; //Front left motor
     float mR_hov = thro_des - roll_PID; //Front right motor
@@ -585,8 +586,8 @@ void controlMixer() {
     float sE_hov = 0.5 + pitch_PID;           //Elevator servo
 
     //forward flight
-    float mL_ff = thro_des - yaw_PID; //Front left motor
-    float mR_ff = thro_des + yaw_PID; //Front right motor
+    float mL_ff = thro_des * ff_throttle_ratio - yaw_PID; //Front left motor
+    float mR_ff = thro_des * ff_throttle_ratio + yaw_PID; //Front right motor
     float sL_ff = trimL + ff_tilt_L - roll_PID; //Tilt left servo
     float sR_ff = trimR + ff_tilt_R + roll_PID; //Tilt right servo
     float sE_ff = 0.5 + pitch_PID;           //Elevator servo
