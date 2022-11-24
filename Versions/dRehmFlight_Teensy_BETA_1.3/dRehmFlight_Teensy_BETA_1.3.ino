@@ -580,7 +580,9 @@ void controlMixer() {
     float ff_tilt_R = 0.52;
     float ff_throttle_ratio = 0.6;
     
-    thro_boost = -0.2 * floatPulseTrap(fader<1 && old_fader==1, 1, 0.5, 1, 0.5, 2000);
+    thro_boost=0;
+    thro_boost +=  0.2 * floatPulseTrap(fader>0 && old_fader==0, 1, 0.5, 1, 0.5, 2000);
+    thro_boost += -0.2 * floatPulseTrap(fader<1 && old_fader==1, 1, 0.5, 1, 0.5, 2000);
     
     //hovering
     float mL_hov = (thro_des + thro_boost) + roll_PID; //Front left motor
