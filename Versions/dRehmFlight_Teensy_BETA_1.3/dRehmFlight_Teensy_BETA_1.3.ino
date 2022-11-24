@@ -554,6 +554,7 @@ void loop() {
 
 
 float fader=0;
+float thro_boost;
 float mL_scaled, mR_scaled, sL_scaled, sR_scaled, sE_scaled;
 void controlMixer() {
   //DESCRIPTION: Mixes scaled commands from PID controller to actuator outputs based on vehicle configuration
@@ -571,28 +572,32 @@ void controlMixer() {
    *roll_passthru, pitch_passthru, yaw_passthru - direct unstabilized command passthrough
    *channel_6_pwm - free auxillary channel, can be used to toggle things with an 'if' statement
    */
-    
+    static float old_fader=0;
     float trimL=0.2;
     float trimR=0.2;
     float maxTilt=0.95;
     float ff_tilt_L = 0.53;
     float ff_tilt_R = 0.52;
-    float ff_throttle_ratio = 0.7;
+    float ff_throttle_ratio = 0.6;
+    
+    thro_boost = -0.2 * floatPulseTrap(fader<1 && old_fader==1, 1, 0.5, 1, 0.5, 2000);
+    
     //hovering
-    float mL_hov = thro_des + roll_PID; //Front left motor
-    float mR_hov = thro_des - roll_PID; //Front right motor
+    float mL_hov = (thro_des + thro_boost) + roll_PID; //Front left motor
+    float mR_hov = (thro_des + thro_boost)  - roll_PID; //Front right motor
     float sL_hov = trimL + pitch_PID - yaw_PID; //Tilt left servo
     float sR_hov = trimR + pitch_PID + yaw_PID; //Tilt right servo
     float sE_hov = 0.5 + pitch_PID;           //Elevator servo
 
     //forward flight
-    float mL_ff = thro_des * ff_throttle_ratio - yaw_PID; //Front left motor
-    float mR_ff = thro_des * ff_throttle_ratio + yaw_PID; //Front right motor
+    float mL_ff = (thro_des + thro_boost)  * ff_throttle_ratio - yaw_PID; //Front left motor
+    float mR_ff = (thro_des + thro_boost)  * ff_throttle_ratio + yaw_PID; //Front right motor
     float sL_ff = trimL + ff_tilt_L - roll_PID; //Tilt left servo
     float sR_ff = trimR + ff_tilt_R + roll_PID; //Tilt right servo
     float sE_ff = 0.5 + pitch_PID;           //Elevator servo
 
     fader = floatFaderLinear2(fader,channel_6_pwm>1500,0,1,5,2,2000);
+
     #ifdef SEPARATE_PID_PARAMS
     ScalePIDsParam(fader);
     #endif
@@ -632,6 +637,8 @@ if (isMechSetupMode) {
     mL_scaled = 0;
     mR_scaled = 0;
     } 
+
+    old_fader=fader;
 }
 
     m1_command_scaled=mL_scaled;
@@ -1608,6 +1615,52 @@ float floatFaderLinear2(float param, float param_des, float param_lower, float p
   return param;
 }
 
+float floatPulseTrap(bool execute, float fadeTime_delay, float fadeTime_up, float fadeTime_duration, float fadeTime_down, int loopFreq){
+  
+  static int status = 0;
+  static float elapsed_time = 0;
+  static float retval=0;
+  static bool old_execute = false;
+
+  elapsed_time += 1/loopFreq;
+  switch (status) {
+    case 0:
+      elapsed_time = 0;
+      retval = 0;
+      if (execute && !old_execute) status=10;
+      break;
+
+    case 10:
+      retval = 0;
+      if (elapsed_time>fadeTime_delay) status=20;
+      break;
+
+    case 20:
+      retval +=  1/(fadeTime_up*loopFreq);
+      if (elapsed_time>fadeTime_delay+fadeTime_up) status=30;
+      break;
+    
+    case 30:
+      if (elapsed_time>fadeTime_delay+fadeTime_up+fadeTime_duration) status=40;
+      retval = 1;
+      break;
+
+    case 40:
+      retval -=  1/(fadeTime_down*loopFreq);
+      if (elapsed_time>fadeTime_delay+fadeTime_up+ fadeTime_duration+fadeTime_down) status=99;
+      break;
+    
+    case 99:
+      retval = 0;
+      status = 0;
+      break;
+  }
+
+  old_execute = execute;
+ 
+  return retval;
+}
+
 void switchRollYaw(int reverseRoll, int reverseYaw) {
   //DESCRIPTION: Switches roll_des and yaw_des variables for tailsitter-type configurations
   /*
@@ -1848,6 +1901,8 @@ void printDesiredState() {
     print_counter = micros();
     Serial.print(F("thro_des: "));
     Serial.print(thro_des);
+    Serial.print(F("thro_boost: "));
+    Serial.print(thro_boost);
     Serial.print(F(" roll_des: "));
     Serial.print(roll_des);
     Serial.print(F(" pitch_des: "));
