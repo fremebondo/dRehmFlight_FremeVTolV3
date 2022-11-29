@@ -203,11 +203,11 @@ float Kd_yaw = 0.00015; // Yaw D-gain (be careful when increasing too high, moto
 //                                                  VTOL PID VARIABLES                                                    //
 //========================================================================================================================//
 #ifdef SEPARATE_PID_PARAMS
-float HV_maxRoll = 30.0;  // Max roll angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
+float HV_maxRoll = 42.0;  // Max roll angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
 float HV_maxPitch = 30.0; // Max pitch angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
 float HV_maxYaw = 220.0;  // Max yaw rate in deg/sec
-float HV_Kp_roll = 0.3;   // 0.2;           //Roll P-gain - angle mode
-float HV_Ki_roll = 0.4;   // 0.3;           //Roll I-gain - angle mode
+float HV_Kp_roll = 0.8;//0.5;   //0.3;   // 0.2;           //Roll P-gain - angle mode
+float HV_Ki_roll = 0.6;//0.4;   // 0.3;           //Roll I-gain - angle mode
 float HV_Kd_roll = 0.1;   // 0.05;          //Roll D-gain - angle mode
 float HV_Kp_pitch = 0.7;  // 0.5;//0.2;          //Pitch P-gain - angle mode
 float HV_Ki_pitch = 0.7;  // 0.5;          //Pitch I-gain - angle mode
