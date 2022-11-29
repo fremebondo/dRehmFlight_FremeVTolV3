@@ -627,7 +627,7 @@ void controlMixer()
   float mR_hov = (thro_des + thro_boost) - roll_PID; // Front right motor
   float sL_hov = trimL + pitch_PID - yaw_PID;        // Tilt left servo
   float sR_hov = trimR + pitch_PID + yaw_PID;        // Tilt right servo
-  float sE_hov = 0.5 + pitch_PID;                    // Elevator servo
+  float sE_hov = 0;//0.5 + pitch_PID;                    // Elevator servo
 
   // forward flight
   float mL_ff = (thro_des + thro_boost) * ff_throttle_ratio - yaw_PID; // Front left motor
