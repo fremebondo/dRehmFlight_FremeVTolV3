@@ -480,7 +480,7 @@ void loop()
 // printMagData();       //Prints filtered magnetometer data direct from IMU (expected: ~ -300 to 300)
 // printRollPitchYaw();  //Prints roll, pitch, and yaw angles in degrees from Madgwick filter (expected: degrees, 0 when level)
 // printPIDoutput();     //Prints computed stabilized PID variables from controller and desired setpoint (expected: ~ -1 to 1)
- printMixer();
+// printMixer();
 // printMotorCommands(); //Prints the values being written to the motors (expected: 120 to 250)
 // printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
 // printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
@@ -624,8 +624,10 @@ void controlMixer()
   thro_boost += -0.2 * TB_ff2hov.Run(fader<1 , 0.2, 0.5, 1, 0.5, 2000);
 
   // hovering
-  float mL_hov = (thro_des + thro_boost) + roll_PID; // Front left motor
-  float mR_hov = (thro_des + thro_boost) - roll_PID; // Front right motor
+  float airmode_hov = abs(roll_PID)-(thro_des + thro_boost);
+  if (airmode_hov<0) airmode_hov=0;
+  float mL_hov = (thro_des + thro_boost) + airmode_hov + roll_PID; // Front left motor
+  float mR_hov = (thro_des + thro_boost) + airmode_hov - roll_PID; // Front right motor
   float sL_hov = trimL + pitch_PID - yaw_PID;        // Tilt left servo
   float sR_hov = trimR + pitch_PID + yaw_PID;        // Tilt right servo
   float sE_hov = 0;//0.5 + pitch_PID;                    // Elevator servo
