@@ -208,8 +208,8 @@ float HV_maxPitch = 30.0; // Max pitch angle in degrees for angle mode (maximum 
 float HV_maxYaw = 220.0;  // Max yaw rate in deg/sec
 float HV_Kp_roll = 0.8;//0.5;   //0.3;   // 0.2;           //Roll P-gain - angle mode
 float HV_Ki_roll = 0.6;//0.4;   // 0.3;           //Roll I-gain - angle mode
-float HV_Kd_roll = 0.1;   // 0.05;          //Roll D-gain - angle mode
-float HV_Kp_pitch = 0.7;  // 0.5;//0.2;          //Pitch P-gain - angle mode
+float HV_Kd_roll = 0.3;//0.1;   // 0.05;          //Roll D-gain - angle mode
+float HV_Kp_pitch = 0.72;  // 0.5;//0.2;          //Pitch P-gain - angle mode
 float HV_Ki_pitch = 0.7;  // 0.5;          //Pitch I-gain - angle mode
 float HV_Kd_pitch = 0.15; // 0.1;;         //Pitch D-gain - angle mode
 float HV_Kp_yaw = 0.09;   // 0.05;           //Yaw P-gain
@@ -630,7 +630,7 @@ void controlMixer()
   float mR_hov = (thro_des + thro_boost) + airmode_hov - roll_PID; // Front right motor
   float sL_hov = trimL + pitch_PID - yaw_PID;        // Tilt left servo
   float sR_hov = trimR + pitch_PID + yaw_PID;        // Tilt right servo
-  float sE_hov = 0;//0.5 + pitch_PID;                    // Elevator servo
+  float sE_hov = 0.5;//0.5 + pitch_PID;                    // Elevator servo
 
   // forward flight
   //https://www.desmos.com/calculator/a7fgkfknj8
