@@ -220,10 +220,10 @@ float HV_Kd_yaw = 0.00015; // 0.00015        //Yaw D-gain
 float FF_maxRoll = 45.0;  // Max roll angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
 float FF_maxPitch = 30.0; // Max pitch angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
 float FF_maxYaw = 180.0;  // Max yaw rate in deg/sec
-float FF_Kp_roll = 0.4; //0.2;   // Roll P-gain - angle mode
+float FF_Kp_roll = 0.7; //0.2;   // Roll P-gain - angle mode
 float FF_Ki_roll = 0.5; //0.3;   // Roll I-gain - angle mode
 float FF_Kd_roll = 0.05;  // Roll D-gain - angle mode
-float FF_Kp_pitch = 0.2;  // Pitch P-gain - angle mode
+float FF_Kp_pitch = 0.3;  // Pitch P-gain - angle mode
 float FF_Ki_pitch = 0.5;  // Pitch I-gain - angle mode
 float FF_Kd_pitch = 0.1;
 ;                          // Pitch D-gain - angle mode
@@ -640,7 +640,7 @@ void controlMixer()
   float mR_ff = (thro_des + thro_boost) * ff_throttle_ratio + yaw_PID; // Front right motor
   float sL_ff = trimL + ff_tilt_L - roll_PID*ff_pid_boost;             // Tilt left servo
   float sR_ff = trimR + ff_tilt_R + roll_PID*ff_pid_boost;             // Tilt right servo
-  float sE_ff = 0.5 + pitch_PID;                                       // Elevator servo
+  float sE_ff = 0.5 - pitch_PID;                                       // Elevator servo
 
   fader = floatFaderLinear2(fader, channel_6_pwm > 1250, 0, 1, 5, 2, 2000);
 
