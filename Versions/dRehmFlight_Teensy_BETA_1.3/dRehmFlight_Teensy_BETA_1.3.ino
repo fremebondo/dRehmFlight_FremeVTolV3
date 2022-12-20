@@ -616,13 +616,15 @@ void controlMixer()
   float ff_tilt_L = 0.53;
   float ff_tilt_R = 0.52;
   float ff_throttle_ratio = 0.6;
-  static PulseTrap TB_hov2ff, TB_ff2hov;
-
+  static PulseTrap TB_hov2ff, TB_ff2hov, EB_ff2hov;
+  float ev_boost;
 
   thro_boost = 0;
   thro_boost += 0.17 * TB_hov2ff.Run(fader >0 , 1.5, 0.5, 0.5, 0.5, 2000);
-  thro_boost += -0.2 * TB_ff2hov.Run(fader<1 , 0.2, 0.5, 1, 0.5, 2000);
+  thro_boost += -0.1 * TB_ff2hov.Run(fader<1 , 0.2, 0.5, 1, 0.5, 2000);
 
+  ev_boost = 0.2 * EB_ff2hov.Run(fader<1 , 0.7, 0.5, 1, 0.5, 2000);
+  
   // hovering
   float airmode_hov = abs(roll_PID)-(thro_des + thro_boost);
   if (airmode_hov<0) airmode_hov=0;
@@ -630,7 +632,7 @@ void controlMixer()
   float mR_hov = (thro_des + thro_boost) + airmode_hov - roll_PID; // Front right motor
   float sL_hov = trimL + pitch_PID - yaw_PID;        // Tilt left servo
   float sR_hov = trimR + pitch_PID + yaw_PID;        // Tilt right servo
-  float sE_hov = 0.5;//0.5 + pitch_PID;                    // Elevator servo
+  float sE_hov = 0.5 + ev_boost;//0.5 + pitch_PID;                    // Elevator servo
 
   // forward flight
   //https://www.desmos.com/calculator/a7fgkfknj8
@@ -640,7 +642,7 @@ void controlMixer()
   float mR_ff = (thro_des + thro_boost) * ff_throttle_ratio + yaw_PID; // Front right motor
   float sL_ff = trimL + ff_tilt_L - roll_PID*ff_pid_boost;             // Tilt left servo
   float sR_ff = trimR + ff_tilt_R + roll_PID*ff_pid_boost;             // Tilt right servo
-  float sE_ff = 0.5 - pitch_PID;                                       // Elevator servo
+  float sE_ff = 0.5 + pitch_PID;                                       // Elevator servo
 
   fader = floatFaderLinear2(fader, channel_6_pwm > 1250, 0, 1, 5, 2, 2000);
 
