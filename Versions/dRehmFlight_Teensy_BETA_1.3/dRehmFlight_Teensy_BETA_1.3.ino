@@ -696,6 +696,15 @@ void controlMixer()
 
   }
 
+  if (isFailsafe)
+    {
+      sL_scaled = trimL;
+      sR_scaled = trimR;
+      sE_scaled = 0.5;
+      mL_scaled = 0;
+      mR_scaled = 0;
+    }
+
   m1_command_scaled = mL_scaled;
   m2_command_scaled = mR_scaled;
   m3_command_scaled = 0;
