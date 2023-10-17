@@ -219,14 +219,13 @@ float HV_Kd_yaw = 0.00015; // 0.00015        //Yaw D-gain
 float FF_maxRoll = 30;  // Max roll angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
 float FF_maxPitch = 30.0; // Max pitch angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
 float FF_maxYaw = 180.0;  // Max yaw rate in deg/sec
-float FF_Kp_roll = 0.7; //0.2;   // Roll P-gain - angle mode
-float FF_Ki_roll = 0.5; //0.3;   // Roll I-gain - angle mode
-float FF_Kd_roll = 0.2;  // Roll D-gain - angle mode
-
-float FF_Kp_pitch = 1.5;  // Pitch P-gain - angle mode
-float FF_Ki_pitch = 1.4;  // Pitch I-gain - angle mode
-float FF_Kd_pitch = 0.3;  // Pitch D-gain - angle mode
-
+float FF_Kp_roll = 0.2;   // Roll P-gain - angle mode
+float FF_Ki_roll = 0.3;   // Roll I-gain - angle mode
+float FF_Kd_roll = 0.05;  // Roll D-gain - angle mode
+float FF_Kp_pitch = 0.2;  // Pitch P-gain - angle mode
+float FF_Ki_pitch = 0.5;  // Pitch I-gain - angle mode
+float FF_Kd_pitch = 0.1;
+;                          // Pitch D-gain - angle mode
 float FF_Kp_yaw = 0.05;    // Yaw P-gain
 float FF_Ki_yaw = 0.02;    // Yaw I-gain
 float FF_Kd_yaw = 0.00015; // Yaw D-gain
