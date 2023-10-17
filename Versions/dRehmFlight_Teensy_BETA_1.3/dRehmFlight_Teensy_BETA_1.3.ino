@@ -213,20 +213,20 @@ float HV_Kp_pitch = 0.72;  // 0.5;//0.2;          //Pitch P-gain - angle mode
 float HV_Ki_pitch = 0.7;  // 0.5;          //Pitch I-gain - angle mode
 float HV_Kd_pitch = 0.15; // 0.1;;         //Pitch D-gain - angle mode
 float HV_Kp_yaw = 0.09;   // 0.05;           //Yaw P-gain
-float HV_Ki_yaw = 0.15;
-;                          // Yaw I-gain
+float HV_Ki_yaw = 0.15;                      // Yaw I-gain
 float HV_Kd_yaw = 0.00015; // 0.00015        //Yaw D-gain
 
-float FF_maxRoll = 45.0;  // Max roll angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
+float FF_maxRoll = 30;  // Max roll angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
 float FF_maxPitch = 30.0; // Max pitch angle in degrees for angle mode (maximum ~70 degrees), deg/sec for rate mode
 float FF_maxYaw = 180.0;  // Max yaw rate in deg/sec
-float FF_Kp_roll = 0.6; //0.2;   // Roll P-gain - angle mode
-float FF_Ki_roll = 0.4; //0.3;   // Roll I-gain - angle mode
-float FF_Kd_roll = 0.05;  // Roll D-gain - angle mode
-float FF_Kp_pitch = 0.4;  // Pitch P-gain - angle mode
-float FF_Ki_pitch = 0.5;  // Pitch I-gain - angle mode
-float FF_Kd_pitch = 0.1;
-;                          // Pitch D-gain - angle mode
+float FF_Kp_roll = 0.7; //0.2;   // Roll P-gain - angle mode
+float FF_Ki_roll = 0.5; //0.3;   // Roll I-gain - angle mode
+float FF_Kd_roll = 0.2;  // Roll D-gain - angle mode
+
+float FF_Kp_pitch = 1.5;  // Pitch P-gain - angle mode
+float FF_Ki_pitch = 1.4;  // Pitch I-gain - angle mode
+float FF_Kd_pitch = 0.3;  // Pitch D-gain - angle mode
+
 float FF_Kp_yaw = 0.05;    // Yaw P-gain
 float FF_Ki_yaw = 0.02;    // Yaw I-gain
 float FF_Kd_yaw = 0.00015; // Yaw D-gain
@@ -482,7 +482,7 @@ void loop()
 // printPIDoutput();     //Prints computed stabilized PID variables from controller and desired setpoint (expected: ~ -1 to 1)
 // printMixer();
 // printMotorCommands(); //Prints the values being written to the motors (expected: 120 to 250)
-// printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
+ printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
 // printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
 // printRollAxisHover();
 // printPitchAxisHover();
@@ -855,6 +855,18 @@ void calculate_IMU_error()
    */
   int16_t AcX, AcY, AcZ, GyX, GyY, GyZ;
 
+  // Dummy read IMU values 10000 times, to stabilize
+  int c = 0;
+  while (c < 12000)
+  {
+  #if defined USE_MPU6050_I2C
+      mpu6050.getMotion6(&AcX, &AcY, &AcZ, &GyX, &GyY, &GyZ);
+  #elif defined USE_MPU9250_SPI
+      mpu9250.getMotion9(&AcX, &AcY, &AcZ, &GyX, &GyY, &GyZ, &MgX, &MgY, &MgZ);
+  #endif
+  c++;
+  }
+
   Serial.println("Calculating IMU errors");
 
   AccErrorX = 0;
@@ -865,7 +877,7 @@ void calculate_IMU_error()
   GyroErrorZ = 0;
 
   // Read IMU values 10000 times
-  int c = 0;
+  c = 0;
   while (c < 12000)
   {
 #if defined USE_MPU6050_I2C
