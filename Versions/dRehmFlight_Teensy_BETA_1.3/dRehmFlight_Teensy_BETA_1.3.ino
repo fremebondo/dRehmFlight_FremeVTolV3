@@ -33,6 +33,7 @@ Everyone that sends me pictures and videos of your flying creations! -Nick
 #define READ_EEPROM_ERRORS
 #define REVERSE_YAW 1
 #define SEPARATE_PID_PARAMS
+#define USE_SD_LOGGER
 
 // Uncomment only one receiver type
 // #define USE_PWM_RX
@@ -65,6 +66,10 @@ static const uint8_t num_DSM_channels = 6; // If using DSM RX, change this to ma
 #include <SPI.h>      //SPI communication
 #include <PWMServo.h> //Commanding any extra actuators, installed with teensyduino installer
 #include <EEPROM.h>
+#include <SD.h>
+
+
+const int chipSelect = BUILTIN_SDCARD;
 
 #if defined USE_SBUS_RX
 #include "src/SBUS/SBUS.h" //sBus interface
@@ -310,6 +315,10 @@ bool sbusLostFrame;
 DSM1024 DSM;
 #endif
 
+#if defined USE_SD_LOGGER
+File LogFile;
+#endif
+
 // IMU:
 float AccX, AccY, AccZ;
 float AccX_prev, AccY_prev, AccZ_prev;
@@ -396,6 +405,36 @@ void setup()
 
   // Set built in LED to turn on to signal startup
   digitalWrite(13, HIGH);
+#ifdef USE_SD_LOGGER
+  if (!SD.begin(chipSelect)) {
+    Serial.println("SD initialization failed!");
+    return;
+  } else {
+    File root = SD.open("/");
+    int new_fnum=0;
+    char new_fname[13];
+    
+    while(true) {
+      File entry = root.openNextFile();
+      if (! entry) {
+       Serial.println("** no more files **");
+       break;
+     }
+     String fname = entry.name();
+     Serial.print(fname);
+     if (!entry.isDirectory()) {
+      if (fname.indexOf("LOG")==0) {
+        //this is a log file
+        int fnum = fname.substring(3).toInt();
+        if (fnum>=new_fnum) new_fnum=fnum+1;
+      }
+     }
+     
+    }
+    sprintf(new_fname,"LOG%03d.txt",new_fnum);
+    LogFile = SD.open(new_fname, FILE_WRITE);
+  }
+#endif
 
   delay(5);
 
@@ -456,6 +495,7 @@ void setup()
 //========================================================================================================================//
 //                                                       MAIN LOOP                                                        //
 //========================================================================================================================//
+void printAll(Stream&, unsigned int);
 
 void loop()
 {
@@ -472,7 +512,7 @@ void loop()
     calculate_IMU_error();
 
   // Print data at 100hz (uncomment one at a time for troubleshooting) - SELECT ONE:
-  // pprintRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
+  // printRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
   //printDesiredState(); // Prints desired vehicle state commanded in either degrees or deg/sec (expected: +/- maxAXIS for roll, pitch, yaw; 0 to 1 for throttle)
 // printGyroData();      //Prints filtered gyro data direct from IMU (expected: ~ -250 to 250, 0 at rest)
 // printAccelData();     //Prints filtered accelerometer data direct from IMU (expected: ~ -2 to 2; x,y 0 when level, z 1 when level)
@@ -481,11 +521,14 @@ void loop()
 // printPIDoutput();     //Prints computed stabilized PID variables from controller and desired setpoint (expected: ~ -1 to 1)
 // printMixer();
 // printMotorCommands(); //Prints the values being written to the motors (expected: 120 to 250)
- printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
+// printServoCommands(Serial); //Prints the values being written to the servos (expected: 0 to 180)
 // printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
 // printRollAxisHover();
 // printPitchAxisHover();
-// printYawAxisHover();
+//printYawAxisHover();
+#ifdef USE_SD_LOGGER
+   printAll(LogFile,2000);
+#endif
 
 // Get vehicle state
 #ifndef SKIP_IMU
@@ -1909,251 +1952,292 @@ void setupBlink(int numBlinks, int upTime, int downTime)
   }
 }
 
-void printMixer()
+void printMixer(Stream& outputstream, unsigned int rate_us = 10000)
 {
-  if (current_time - print_counter > 10000)
+  if (current_time - print_counter > rate_us)
   {
     print_counter = micros();
-    Serial.print(F("roll_PID: "));
-    Serial.print(roll_PID);
-    Serial.print(F(" pitch_PID: "));
-    Serial.print(pitch_PID);
-    Serial.print(F(" yaw_PID: "));
-    Serial.print(yaw_PID);
-    Serial.print(F(" fader: "));
-    Serial.print(fader);
-    Serial.print(F(" thro_boost: "));
-    Serial.print(thro_boost);
-    Serial.print(F(" mL_scaled: "));
-    Serial.print(mL_scaled);
-    Serial.print(F(" mR_scaled: "));
-    Serial.print(mR_scaled);
-    Serial.print(F(" sL_scaled: "));
-    Serial.print(sL_scaled);
-    Serial.print(F(" sR_scaled: "));
-    Serial.print(sR_scaled);
-    Serial.print(F(" sE_scaled: "));
-    Serial.println(sE_scaled);
+    outputstream.print(F("roll_PID: "));
+    outputstream.print(roll_PID);
+    outputstream.print(F(" pitch_PID: "));
+    outputstream.print(pitch_PID);
+    outputstream.print(F(" yaw_PID: "));
+    outputstream.print(yaw_PID);
+    outputstream.print(F(" fader: "));
+    outputstream.print(fader);
+    outputstream.print(F(" thro_boost: "));
+    outputstream.print(thro_boost);
+    outputstream.print(F(" mL_scaled: "));
+    outputstream.print(mL_scaled);
+    outputstream.print(F(" mR_scaled: "));
+    outputstream.print(mR_scaled);
+    outputstream.print(F(" sL_scaled: "));
+    outputstream.print(sL_scaled);
+    outputstream.print(F(" sR_scaled: "));
+    outputstream.print(sR_scaled);
+    outputstream.print(F(" sE_scaled: "));
+    outputstream.println(sE_scaled);
   }
 }
 
-void printRollAxisHover()
-{
-  if (current_time - print_counter > 10000)
+void printAll(Stream& outputstream, unsigned int rate_us = 10000)
+{ unsigned long deltatime = current_time - print_counter;
+  if (deltatime > rate_us)
   {
     print_counter = micros();
-    Serial.print(F(" roll_des: "));
-    Serial.print(roll_des);
-    Serial.print(F(" roll_imu: "));
-    Serial.print(roll_IMU);
-    Serial.print(F(" roll_PID: "));
-    Serial.print(roll_PID);
-    Serial.print(F(" mL_scaled: "));
-    Serial.print(mL_scaled);
-    Serial.print(F(" mR_scaled: "));
-    Serial.println(mR_scaled);
+    if (channel_5_pwm<1250) return;
+    char space[] = " ";
+    outputstream.print(deltatime);
+    outputstream.print(F(space));
+    outputstream.print(roll_des);
+    outputstream.print(F(space));
+    outputstream.print(pitch_des);
+    outputstream.print(F(space));
+    outputstream.print(yaw_des);
+    outputstream.print(F(space));
+    outputstream.print(roll_IMU);
+    outputstream.print(F(space));
+    outputstream.print(pitch_IMU);
+    outputstream.print(F(space));
+    outputstream.print(yaw_IMU);
+    outputstream.print(F(space));
+    outputstream.print(roll_PID);
+    outputstream.print(F(space));
+    outputstream.print(pitch_PID);
+    outputstream.print(F(space));
+    outputstream.print(yaw_PID);
+    outputstream.print(F(space));
+    outputstream.print(fader);
+    outputstream.print(F(space));
+    outputstream.print(mL_scaled);
+    outputstream.print(F(space));
+    outputstream.print(mR_scaled);
+    outputstream.print(F(space));
+    outputstream.print(sL_scaled);
+    outputstream.print(F(space));
+    outputstream.print(sR_scaled);
+    outputstream.print(F(space));
+    outputstream.println(sE_scaled);
   }
 }
 
-void printPitchAxisHover()
+void printRollAxisHover(Stream& outputstream, unsigned int rate_us = 10000)
 {
-  if (current_time - print_counter > 10000)
+  if (current_time - print_counter > rate_us)
   {
     print_counter = micros();
-    Serial.print(F(" pitch_des: "));
-    Serial.print(pitch_des);
-    Serial.print(F(" pitch_imu: "));
-    Serial.print(pitch_IMU);
-    Serial.print(F(" pitch_PID: "));
-    Serial.print(pitch_PID);
-    Serial.print(F(" sL scaled: "));
-    Serial.print(sL_scaled);
-    Serial.print(F(" sR scaled: "));
-    Serial.print(sR_scaled);
-    Serial.print(F(" sE scaled: "));
-    Serial.println(sE_scaled);
+    outputstream.print(F(" roll_des: "));
+    outputstream.print(roll_des);
+    outputstream.print(F(" roll_imu: "));
+    outputstream.print(roll_IMU);
+    outputstream.print(F(" roll_PID: "));
+    outputstream.print(roll_PID);
+    outputstream.print(F(" mL_scaled: "));
+    outputstream.print(mL_scaled);
+    outputstream.print(F(" mR_scaled: "));
+    outputstream.println(mR_scaled);
   }
 }
 
-void printYawAxisHover()
+void printPitchAxisHover(Stream& outputstream, unsigned int rate_us = 10000)
 {
-  if (current_time - print_counter > 10000)
+  if (current_time - print_counter > rate_us)
   {
     print_counter = micros();
-    Serial.print(F(" yaw_des: "));
-    Serial.print(yaw_des);
-    Serial.print(F(" yaw_imu: "));
-    Serial.print(yaw_IMU);
-    Serial.print(F(" yaw_PID: "));
-    Serial.print(yaw_PID);
-    Serial.print(F(" sL scaled: "));
-    Serial.print(sL_scaled);
-    Serial.print(F(" sR scaled: "));
-    Serial.println(sR_scaled);
+    outputstream.print(F(" pitch_des: "));
+    outputstream.print(pitch_des);
+    outputstream.print(F(" pitch_imu: "));
+    outputstream.print(pitch_IMU);
+    outputstream.print(F(" pitch_PID: "));
+    outputstream.print(pitch_PID);
+    outputstream.print(F(" sL scaled: "));
+    outputstream.print(sL_scaled);
+    outputstream.print(F(" sR scaled: "));
+    outputstream.print(sR_scaled);
+    outputstream.print(F(" sE scaled: "));
+    outputstream.println(sE_scaled);
   }
 }
 
-void printRadioData()
+void printYawAxisHover(Stream& outputstream, unsigned int rate_us = 10000)
 {
-  if (current_time - print_counter > 10000)
+  if (current_time - print_counter > rate_us)
   {
     print_counter = micros();
-    Serial.print(F(" FS: "));
-    Serial.print(isFailsafe);
-    Serial.print(F(" FsCount: "));
-    Serial.print(countFailsafe);
-    Serial.print(F(" CH1: "));
-    Serial.print(channel_1_pwm);
-    Serial.print(F(" CH2: "));
-    Serial.print(channel_2_pwm);
-    Serial.print(F(" CH3: "));
-    Serial.print(channel_3_pwm);
-    Serial.print(F(" CH4: "));
-    Serial.print(channel_4_pwm);
-    Serial.print(F(" CH5: "));
-    Serial.print(channel_5_pwm);
-    Serial.print(F(" CH6: "));
-    Serial.println(channel_6_pwm);
+    outputstream.print(F(" yaw_des: "));
+    outputstream.print(yaw_des);
+    outputstream.print(F(" yaw_imu: "));
+    outputstream.print(yaw_IMU);
+    outputstream.print(F(" yaw_PID: "));
+    outputstream.print(yaw_PID);
+    outputstream.print(F(" sL scaled: "));
+    outputstream.print(sL_scaled);
+    outputstream.print(F(" sR scaled: "));
+    outputstream.println(sR_scaled);
   }
 }
 
-void printDesiredState()
+void printRadioData(Stream& outputstream, unsigned int rate_us = 10000)
 {
-  if (current_time - print_counter > 10000)
+  if (current_time - print_counter > rate_us)
   {
     print_counter = micros();
-    Serial.print(F("thro_des: "));
-    Serial.print(thro_des);
-    Serial.print(F(" thro_boost: "));
-    Serial.print(thro_boost);
-    Serial.print(F(" roll_des: "));
-    Serial.print(roll_des);
-    Serial.print(F(" pitch_des: "));
-    Serial.print(pitch_des);
-    Serial.print(F(" yaw_des: "));
-    Serial.println(yaw_des);
+    outputstream.print(F(" FS: "));
+    outputstream.print(isFailsafe);
+    outputstream.print(F(" FsCount: "));
+    outputstream.print(countFailsafe);
+    outputstream.print(F(" CH1: "));
+    outputstream.print(channel_1_pwm);
+    outputstream.print(F(" CH2: "));
+    outputstream.print(channel_2_pwm);
+    outputstream.print(F(" CH3: "));
+    outputstream.print(channel_3_pwm);
+    outputstream.print(F(" CH4: "));
+    outputstream.print(channel_4_pwm);
+    outputstream.print(F(" CH5: "));
+    outputstream.print(channel_5_pwm);
+    outputstream.print(F(" CH6: "));
+    outputstream.println(channel_6_pwm);
   }
 }
 
-void printGyroData()
+void printDesiredState(Stream& outputstream, unsigned int rate_us = 10000)
 {
-  if (current_time - print_counter > 10000)
+  if (current_time - print_counter > rate_us)
   {
     print_counter = micros();
-    Serial.print(F("GyroX: "));
-    Serial.print(GyroX);
-    Serial.print(F(" GyroY: "));
-    Serial.print(GyroY);
-    Serial.print(F(" GyroZ: "));
-    Serial.println(GyroZ);
+    outputstream.print(F("thro_des: "));
+    outputstream.print(thro_des);
+    outputstream.print(F(" thro_boost: "));
+    outputstream.print(thro_boost);
+    outputstream.print(F(" roll_des: "));
+    outputstream.print(roll_des);
+    outputstream.print(F(" pitch_des: "));
+    outputstream.print(pitch_des);
+    outputstream.print(F(" yaw_des: "));
+    outputstream.println(yaw_des);
   }
 }
 
-void printAccelData()
+void printGyroData(Stream& outputstream, unsigned int rate_us = 10000)
 {
-  if (current_time - print_counter > 10000)
+  if (current_time - print_counter > rate_us)
   {
     print_counter = micros();
-    Serial.print(F("AccX: "));
-    Serial.print(AccX);
-    Serial.print(F(" AccY: "));
-    Serial.print(AccY);
-    Serial.print(F(" AccZ: "));
-    Serial.println(AccZ);
+    outputstream.print(F("GyroX: "));
+    outputstream.print(GyroX);
+    outputstream.print(F(" GyroY: "));
+    outputstream.print(GyroY);
+    outputstream.print(F(" GyroZ: "));
+    outputstream.println(GyroZ);
   }
 }
 
-void printMagData()
+void printAccelData(Stream& outputstream, unsigned int rate_us = 10000)
 {
-  if (current_time - print_counter > 10000)
+  if (current_time - print_counter > rate_us)
   {
     print_counter = micros();
-    Serial.print(F("MagX: "));
-    Serial.print(MagX);
-    Serial.print(F(" MagY: "));
-    Serial.print(MagY);
-    Serial.print(F(" MagZ: "));
-    Serial.println(MagZ);
+    outputstream.print(F("AccX: "));
+    outputstream.print(AccX);
+    outputstream.print(F(" AccY: "));
+    outputstream.print(AccY);
+    outputstream.print(F(" AccZ: "));
+    outputstream.println(AccZ);
   }
 }
 
-void printRollPitchYaw()
+void printMagData(Stream& outputstream, unsigned int rate_us = 10000)
 {
-  if (current_time - print_counter > 10000)
+  if (current_time - print_counter > rate_us)
   {
     print_counter = micros();
-    Serial.print(F("roll: "));
-    Serial.print(roll_IMU);
-    Serial.print(F(" pitch: "));
-    Serial.print(pitch_IMU);
-    Serial.print(F(" yaw: "));
-    Serial.println(yaw_IMU);
+    outputstream.print(F("MagX: "));
+    outputstream.print(MagX);
+    outputstream.print(F(" MagY: "));
+    outputstream.print(MagY);
+    outputstream.print(F(" MagZ: "));
+    outputstream.println(MagZ);
   }
 }
 
-void printPIDoutput()
+void printRollPitchYaw(Stream& outputstream, unsigned int rate_us = 10000)
 {
-  if (current_time - print_counter > 10000)
+  if (current_time - print_counter > rate_us)
   {
     print_counter = micros();
-    Serial.print(F("roll_PID: "));
-    Serial.print(roll_PID);
-    Serial.print(F(" pitch_PID: "));
-    Serial.print(pitch_PID);
-    Serial.print(F(" yaw_PID: "));
-    Serial.println(yaw_PID);
+    outputstream.print(F("roll: "));
+    outputstream.print(roll_IMU);
+    outputstream.print(F(" pitch: "));
+    outputstream.print(pitch_IMU);
+    outputstream.print(F(" yaw: "));
+    outputstream.println(yaw_IMU);
   }
 }
 
-void printMotorCommands()
+void printPIDoutput(Stream& outputstream, unsigned int rate_us = 10000)
 {
-  if (current_time - print_counter > 10000)
+  if (current_time - print_counter > rate_us)
   {
     print_counter = micros();
-    Serial.print(F("m1_command: "));
-    Serial.print(m1_command_PWM);
-    Serial.print(F(" m2_command: "));
-    Serial.print(m2_command_PWM);
-    Serial.print(F(" m3_command: "));
-    Serial.print(m3_command_PWM);
-    Serial.print(F(" m4_command: "));
-    Serial.print(m4_command_PWM);
-    Serial.print(F(" m5_command: "));
-    Serial.print(m5_command_PWM);
-    Serial.print(F(" m6_command: "));
-    Serial.println(m6_command_PWM);
+    outputstream.print(F("roll_PID: "));
+    outputstream.print(roll_PID);
+    outputstream.print(F(" pitch_PID: "));
+    outputstream.print(pitch_PID);
+    outputstream.print(F(" yaw_PID: "));
+    outputstream.println(yaw_PID);
   }
 }
 
-void printServoCommands()
+void printMotorCommands(Stream& outputstream, unsigned int rate_us = 10000)
 {
-  if (current_time - print_counter > 10000)
+  if (current_time - print_counter > rate_us)
   {
     print_counter = micros();
-    Serial.print(F("s1_command: "));
-    Serial.print(s1_command_PWM);
-    Serial.print(F(" s2_command: "));
-    Serial.print(s2_command_PWM);
-    Serial.print(F(" s3_command: "));
-    Serial.print(s3_command_PWM);
-    Serial.print(F(" s4_command: "));
-    Serial.print(s4_command_PWM);
-    Serial.print(F(" s5_command: "));
-    Serial.print(s5_command_PWM);
-    Serial.print(F(" s6_command: "));
-    Serial.print(s6_command_PWM);
-    Serial.print(F(" s7_command: "));
-    Serial.println(s7_command_PWM);
+    outputstream.print(F("m1_command: "));
+    outputstream.print(m1_command_PWM);
+    outputstream.print(F(" m2_command: "));
+    outputstream.print(m2_command_PWM);
+    outputstream.print(F(" m3_command: "));
+    outputstream.print(m3_command_PWM);
+    outputstream.print(F(" m4_command: "));
+    outputstream.print(m4_command_PWM);
+    outputstream.print(F(" m5_command: "));
+    outputstream.print(m5_command_PWM);
+    outputstream.print(F(" m6_command: "));
+    outputstream.println(m6_command_PWM);
   }
 }
 
-void printLoopRate()
+void printServoCommands(Stream& outputstream, unsigned int rate_us = 10000)
 {
-  if (current_time - print_counter > 10000)
+  if (current_time - print_counter > rate_us)
   {
     print_counter = micros();
-    Serial.print(F("dt = "));
-    Serial.println(dt * 1000000.0);
+    outputstream.print(F("s1_command: "));
+    outputstream.print(s1_command_PWM);
+    outputstream.print(F(" s2_command: "));
+    outputstream.print(s2_command_PWM);
+    outputstream.print(F(" s3_command: "));
+    outputstream.print(s3_command_PWM);
+    outputstream.print(F(" s4_command: "));
+    outputstream.print(s4_command_PWM);
+    outputstream.print(F(" s5_command: "));
+    outputstream.print(s5_command_PWM);
+    outputstream.print(F(" s6_command: "));
+    outputstream.print(s6_command_PWM);
+    outputstream.print(F(" s7_command: "));
+    outputstream.println(s7_command_PWM);
+  }
+}
+
+void printLoopRate(Stream& outputstream, unsigned int rate_us = 10000)
+{
+  if (current_time - print_counter > rate_us)
+  {
+    print_counter = micros();
+    outputstream.print(F("dt = "));
+    outputstream.println(dt * 1000000.0);
   }
 }
 
