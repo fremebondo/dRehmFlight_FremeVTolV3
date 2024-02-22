@@ -222,9 +222,9 @@ float FF_maxYaw = 180.0;  // Max yaw rate in deg/sec
 float FF_Kp_roll = 0.2;   // Roll P-gain - angle mode
 float FF_Ki_roll = 0.3;   // Roll I-gain - angle mode
 float FF_Kd_roll = 0.05;  // Roll D-gain - angle mode
-float FF_Kp_pitch = 0.2;  // Pitch P-gain - angle mode
-float FF_Ki_pitch = 0.5;  // Pitch I-gain - angle mode
-float FF_Kd_pitch = 0.1;
+float FF_Kp_pitch = 2;  // Pitch P-gain - angle mode
+float FF_Ki_pitch = 5;  // Pitch I-gain - angle mode
+float FF_Kd_pitch = 0.3;
 ;                          // Pitch D-gain - angle mode
 float FF_Kp_yaw = 0.05;    // Yaw P-gain
 float FF_Ki_yaw = 0.02;    // Yaw I-gain
@@ -474,17 +474,17 @@ void loop()
   // Print data at 100hz (uncomment one at a time for troubleshooting) - SELECT ONE:
   // pprintRadioData();     //Prints radio pwm values (expected: 1000 to 2000)
   //printDesiredState(); // Prints desired vehicle state commanded in either degrees or deg/sec (expected: +/- maxAXIS for roll, pitch, yaw; 0 to 1 for throttle)
-// printGyroData();      //Prints filtered gyro data direct from IMU (expected: ~ -250 to 250, 0 at rest)
+ //printGyroData();      //Prints filtered gyro data direct from IMU (expected: ~ -250 to 250, 0 at rest)
 // printAccelData();     //Prints filtered accelerometer data direct from IMU (expected: ~ -2 to 2; x,y 0 when level, z 1 when level)
 // printMagData();       //Prints filtered magnetometer data direct from IMU (expected: ~ -300 to 300)
 // printRollPitchYaw();  //Prints roll, pitch, and yaw angles in degrees from Madgwick filter (expected: degrees, 0 when level)
 // printPIDoutput();     //Prints computed stabilized PID variables from controller and desired setpoint (expected: ~ -1 to 1)
 // printMixer();
 // printMotorCommands(); //Prints the values being written to the motors (expected: 120 to 250)
- printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
+// printServoCommands(); //Prints the values being written to the servos (expected: 0 to 180)
 // printLoopRate();      //Prints the time between loops in microseconds (expected: microseconds between loop iterations)
 // printRollAxisHover();
-// printPitchAxisHover();
+printPitchAxisHover();
 // printYawAxisHover();
 
 // Get vehicle state
